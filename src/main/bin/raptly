@@ -1,4 +1,4 @@
 #!/bin/bash
-export VENV=/usr/local/opt/raptly
+export VENV=/usr/local/opt/raptly/venv
 source ${VENV}/bin/activate
 python ${VENV}/lib/python2.7/site-packages/raptly/raptly.py "$@"
