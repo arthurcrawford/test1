@@ -31,7 +31,7 @@ source "${PYTHON_VENV_NAME}"/bin/activate
 pip install --upgrade pip
 
 # Copy our Python code to the virtual env's site-packages
-# TODO - care maybe needed here - may not be python2.7. Can we find site-packages subdir first
+# Determine site packages dir for the virtualenv using distutils
 SITE_PACKAGES=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
 MODULE_DIR="${SITE_PACKAGES}/${COMPONENT}/"
 mkdir -p "${MODULE_DIR}"
@@ -42,7 +42,7 @@ mkdir -p "${PAYLOAD_DIR}${DEST_DIR}/${COMPONENT}"
 cp -r "${COMPONENT_DIR}"/python/venv "${PAYLOAD_DIR}${DEST_DIR}/${COMPONENT}"/
 
 # Fix the Python virtualenv path
-sed -i.bak "s|$BUILD_DIR|/usr/local/opt|" "${PAYLOAD_DIR}${DEST_DIR}/${COMPONENT}"/venv/bin/activate
+sed -i.bak "s|$BUILD_DIR|$DEST_DIR|" "${PAYLOAD_DIR}${DEST_DIR}/${COMPONENT}"/venv/bin/activate
 rm "${PAYLOAD_DIR}${DEST_DIR}/${COMPONENT}"/venv/bin/activate.bak
 
 # Copy wrapper script
