@@ -1,6 +1,9 @@
 #!/bin/bash
 
+IDENTIFIER="com.a4pizza.raptly"
+COMPONENT="raptly"
 BASE_DIR="${PWD}"
+DEST_DIR=/usr/local/opt
 
 # Create a clean build directory
 BUILD_DIR="${BASE_DIR}"/build
@@ -15,8 +18,8 @@ SCRIPT_DIR="${PACKAGE_DIR}"/scripts
 mkdir -p "${PAYLOAD_DIR}"
 mkdir -p "${SCRIPT_DIR}"
 
-# Create a component directory to stage raptly code into
-COMPONENT_DIR="${BUILD_DIR}"/raptly
+# Create a component directory to stage code into
+COMPONENT_DIR="${BUILD_DIR}/${COMPONENT}"
 mkdir -p "${COMPONENT_DIR}"
 
 # Create Python virtualenv and activate it
@@ -34,15 +37,15 @@ mkdir -p "${MODULE_DIR}"
 cp src/main/python/raptly/*.py "${MODULE_DIR}"
 
 # Assemble the raptly python component payload; N.B. hidden files must be copied in this step!
-mkdir -p "${PAYLOAD_DIR}"/usr/local/opt/raptly
-cp -r "${COMPONENT_DIR}"/python/venv "${PAYLOAD_DIR}"/usr/local/opt/raptly/
+mkdir -p "${PAYLOAD_DIR}${DEST_DIR}"/raptly
+cp -r "${COMPONENT_DIR}"/python/venv "${PAYLOAD_DIR}${DEST_DIR}"/raptly/
 
 # Fix the Python virtualenv path
-sed -i.bak "s|$BUILD_DIR|/usr/local/opt|" "${PAYLOAD_DIR}"/usr/local/opt/raptly/venv/bin/activate
+sed -i.bak "s|$BUILD_DIR|/usr/local/opt|" "${PAYLOAD_DIR}${DEST_DIR}"/raptly/venv/bin/activate
 
 # Copy wrapper script
-mkdir -p "${PAYLOAD_DIR}"/usr/local/opt/raptly/bin
-cp src/main/bin/raptly "${PAYLOAD_DIR}"/usr/local/opt/raptly/bin
+mkdir -p "${PAYLOAD_DIR}${DEST_DIR}"/raptly/bin
+cp src/main/bin/raptly "${PAYLOAD_DIR}${DEST_DIR}"/raptly/bin
 
 # Build OSX package
 cp src/assembly/postinstall "${SCRIPT_DIR}"
