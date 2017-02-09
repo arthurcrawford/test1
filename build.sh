@@ -32,7 +32,8 @@ pip install --upgrade pip
 
 # Copy our Python code to the virtual env's site-packages
 # TODO - care maybe needed here - may not be python2.7. Can we find site-packages subdir first
-MODULE_DIR="${PYTHON_VENV_NAME}/lib/python2.7/site-packages/${COMPONENT}/"
+SITE_PACKAGES=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+MODULE_DIR="${SITE_PACKAGES}/${COMPONENT}/"
 mkdir -p "${MODULE_DIR}"
 cp src/main/python/${COMPONENT}/*.py "${MODULE_DIR}"
 
