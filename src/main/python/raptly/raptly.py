@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from raptly.debian_version import compare_versions
+from debian_version import compare_versions
 
 def main():
 

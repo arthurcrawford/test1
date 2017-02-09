@@ -1,8 +1,11 @@
 #!/bin/bash
 
+BASE_DIR="${PWD}"
+
 # Create a build directory
-BUILD_DIR=build
+BUILD_DIR="${BASE_DIR}"/build
 mkdir -p "${BUILD_DIR}"
+echo "Building in ${BUILD_DIR}..."
 
 # Create component directory to stage raptly 
 COMPONENT_DIR="${BUILD_DIR}"/raptly
@@ -36,9 +39,12 @@ cp src/main/python/raptly/*.py "${MODULE_DIR}"
 
 cp src/assembly/postinstall "${SCRIPT_DIR}"
 
-# Assemble the raptly python component payload
-mkdir -p "${PAYLOAD_DIR}"/usr/local/opt/raptly/venv
-cp -R "${COMPONENT_DIR}"/python/venv/* "${PAYLOAD_DIR}"/usr/local/opt/raptly/venv
+# Assemble the raptly python component payload; N.B. all hidden files in the venv must be copied in this step!
+mkdir -p "${PAYLOAD_DIR}"/usr/local/opt/raptly
+cp -r "${COMPONENT_DIR}"/python/venv "${PAYLOAD_DIR}"/usr/local/opt/raptly/
+
+# Fix the Python virtualenv path
+sed -i.bak "s|$BUILD_DIR|/usr/local/opt|" "${PAYLOAD_DIR}"/usr/local/opt/raptly/venv/bin/activate
 
 # Copy wrapper script
 mkdir -p "${PAYLOAD_DIR}"/usr/local/opt/raptly/bin
