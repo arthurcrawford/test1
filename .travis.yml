@@ -27,4 +27,3 @@ deploy:
   skip_cleanup: true
   on:
     repo: arthurcrawford/test1
-    tags: true
