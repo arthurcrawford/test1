@@ -19,4 +19,4 @@ install:
   - pip install -r requirements.txt
 # command to run tests
 script: 
-  - PYTHONPATH=src/main/python pytest
+  - PYTHONPATH=src/main/python pytest src/test/python
