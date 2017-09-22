@@ -23,12 +23,13 @@ COMPONENT_DIR="${BUILD_DIR}/${COMPONENT}"
 mkdir -p "${COMPONENT_DIR}"
 
 # Create Python virtualenv and activate it
-PYTHON_VENV_NAME="${COMPONENT_DIR}"/python/venv
+PYTHON_VENV_NAME="${COMPONENT_DIR}"/venv
 virtualenv --always-copy "${PYTHON_VENV_NAME}"
 source "${PYTHON_VENV_NAME}"/bin/activate
 
 # Install python dependencies/requirements
 pip install --upgrade pip
+pip install -r requirements.txt
 
 # Copy our Python code to the virtual env's site-packages
 # Determine site packages dir for the virtualenv using distutils
@@ -39,7 +40,7 @@ cp src/main/python/${COMPONENT}/*.py "${MODULE_DIR}"
 
 # Assemble the raptly python component payload; N.B. hidden files must be copied in this step!
 mkdir -p "${PAYLOAD_DIR}${DEST_DIR}/${COMPONENT}"
-cp -r "${COMPONENT_DIR}"/python/venv "${PAYLOAD_DIR}${DEST_DIR}/${COMPONENT}"/
+cp -r "${PYTHON_VENV_NAME}" "${PAYLOAD_DIR}${DEST_DIR}/${COMPONENT}"/
 
 # Fix the Python virtualenv path
 sed -i.bak "s|$BUILD_DIR|$DEST_DIR|" "${PAYLOAD_DIR}${DEST_DIR}/${COMPONENT}"/venv/bin/activate
