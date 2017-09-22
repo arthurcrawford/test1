@@ -17,3 +17,12 @@ Then you may install pytest and execute the tests.
 
     pip install pytest
     PYTHONPATH=src/main/python pytest src/test/python
+
+## Install on Mac
+
+    open build/com.a4pizza.raptly.pkg
+
+## Uninstall on Mac
+    
+    sudo rm -rf /usr/local/opt/raptly/
+    sudo pkgutil --forget com.a4pizza.raptly
