@@ -1,0 +1,6 @@
+Package: raptly
+Version: {__version__}
+Depends: python (>= 2.7)
+Maintainer: Art Crawford <arthur.crawford@a4pizza.com>
+Description: A remote command line client for Aptly and a release management tool.
+Architecture: all

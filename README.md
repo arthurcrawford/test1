@@ -6,6 +6,15 @@ To build locally
 
     ./build.sh
 
+To build in the support Docker container (Ubuntu:trusty).
+
+    BASEDIR=`pwd` && \
+      docker run \
+      -v ${BASEDIR}:/mnt/src \
+      -v ${BASEDIR}/build:/mnt/build \
+      -w /mnt/src \
+      raptly build
+  
 ## Test
 
 To isolate yourself from other python environments on your system it's recommended to set up a virtualenv python environment first.  For example:
