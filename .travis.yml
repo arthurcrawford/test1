@@ -37,5 +37,5 @@ deploy:
     skip_cleanup: true
     on:
       repo: arthurcrawford/test1
-      condition: -f ${TRAVIS_BUILD_DIR}/build/raptly_?.?.?_all.deb
+      condition: ls ${TRAVIS_BUILD_DIR}/build/raptly_?.?.?_all.deb 1> /dev/null 2>&1
 
