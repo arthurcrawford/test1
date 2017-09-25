@@ -61,6 +61,7 @@ case "$OSTYPE" in
             ;; 
   linux*)   echo "Building Debian package" 
             cp -R src/DEBIAN "${PAYLOAD_DIR}"
+            cp src/assembly/postinstall "${PAYLOAD_DIR}"/DEBIAN/postinst
             # Substitute the version into the Debian control file
             sed -i -e s/{__version__}/${VERSION}/ "${PAYLOAD_DIR}"/DEBIAN/control
             # Build Debian package
