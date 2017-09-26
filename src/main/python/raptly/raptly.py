@@ -4,6 +4,7 @@ from raptly_cmd import *
 import requests
 from requests.exceptions import SSLError, ConnectionError
 
+
 def main():
     top_parser = create_cmd_parsers()
 
@@ -50,6 +51,7 @@ def main():
         message = template.format(type(e).__name__, e.args)
         print message
         raise
+
 
 if __name__ == "__main__":
     main()
