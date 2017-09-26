@@ -104,6 +104,7 @@ def add_show_cmd(subparsers):
     cmd_parser.add_argument('repo_name', nargs='?', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
     cmd_parser.add_argument('distribution', nargs='?', help='The name of the distribution to show')
     cmd_parser.add_argument('-j', '--json', dest='json', action='store_true', help='Print result as json')
+    cmd_parser.add_argument('-p', '--prune', dest='prune', action='store_true', help='Show pruned by latest version')
     cmd_parser.set_defaults(json=False)
     cmd_parser.set_defaults(func=run_remote_cmd)
 
@@ -207,7 +208,7 @@ def deploy_cmd(args, url, key, cert):
         api.republish_unstable(unstable_dist_name=args.distribution, public_repo_name=args.repo_name,
                                gpg_public_key_id=args.gpg_key)
 
-    show(api, False, args.repo_name, 'unstable')
+    show(api, False, False, args.repo_name, 'unstable')
 
 
 def undeploy_cmd(args, url, key, cert):
@@ -272,7 +273,7 @@ def stage_cmd(args, url, key, cert):
     api.stage(public_repo_name=args.repo_name, testing_distribution_name='testing',
               staging_distribution_name='staging', release_id=args.release_id)
     print('Staged release %s:' % args.release_id)
-    show(api, False, args.repo_name, 'staging')
+    show(api, False, False, args.repo_name, 'staging')
 
 
 def release_cmd(args, url, key, cert):
@@ -282,7 +283,7 @@ def release_cmd(args, url, key, cert):
     api.release(public_repo_name=args.repo_name, staging_distribution_name='staging',
                 stable_distribution_name='stable', release_id=args.release_id)
     print('Released %s to stable:' % args.release_id)
-    show(api, False, args.repo_name, 'stable')
+    show(api, False, False, args.repo_name, 'stable')
 
 
 def get_api(args, url, key, cert):
@@ -350,10 +351,12 @@ def run_remote_cmd(args):
         version_cmd(args=args, url=url, key=key, cert=cert)
 
 
-def show_cmd(url, args, key, cert):
+def show_cmd(url, args, key=None, cert=None):
     """Print packages to stdout
     :param url: URL of backend Aptly API
     :param args: Command line arguments
+    :param key: Client key - may be None
+    :param cert: Client cert - may be None
     """
 
     # If no repo name specified list all published repos
@@ -366,20 +369,21 @@ def show_cmd(url, args, key, cert):
         dist_list_cmd(url=url, args=args, key=key, cert=cert)
         return
 
-    # If both repo name a distribution specified show the whole works
+    # If both repo name and a distribution name are specified show the whole works
     api = get_api(args=args, url=url, key=key, cert=cert)
-    show(api, args.json, public_repo_name=args.repo_name, distribution=args.distribution)
+    show(api, args.prune, args.json, public_repo_name=args.repo_name, distribution=args.distribution)
 
 
-def show(api, is_json, public_repo_name, distribution):
+def show(api, is_pruned, is_json, public_repo_name, distribution):
+    # Get the publication of the specified repo + distribution
     matching_publication = api.get_publication(public_repo_name=public_repo_name, distribution=distribution)
-
     if matching_publication is None:
         raise aptly_api.RaptlyError('Distribution not found: %s %s' % (public_repo_name, distribution))
 
     print('Prefix:       %s' % matching_publication['Prefix'])
     print('Distribution: %s' % matching_publication['Distribution'])
     print('Source:')
+    # Print out the Source - aka, usually, the source snapshot
     for source in matching_publication['Sources']:
         print('  %s' % source['Name'])
     print('Packages: ')
@@ -392,12 +396,25 @@ def show(api, is_json, public_repo_name, distribution):
     # Correct Debian version sorting provided by debian_version.compare_versions
     unsorted = api.get_packages(matching_publication)
     sorted_by_version = sorted(unsorted, key=aptly_api.pkg_ref_version_key(compare_versions))
-    sorted_by_name = sorted(sorted_by_version, key=lambda pr: pr[1:].split()[1])
+    sorted_by_name_and_version = sorted(sorted_by_version, key=lambda pr: pr[1:].split()[1])
+
+    final_list = sorted_by_name_and_version
+    # If caller wants the list pruned:
+    if is_pruned:
+        seen = set()
+        unique_name_sorted_by_name_and_version = []
+        for pr in reversed(sorted_by_name_and_version):
+            package_name = pr[1:].split()[1]
+            if package_name not in seen:
+                unique_name_sorted_by_name_and_version.append(pr)
+                seen.add(package_name)
+        final_list = list(reversed(unique_name_sorted_by_name_and_version))
+
     if is_json:
-        print json.dumps(sorted_by_name)
+        print json.dumps(final_list)
     else:
         # Print out one package name per line
-        aptly_api.print_package_refs(sorted_by_name)
+        aptly_api.print_package_refs(final_list)
 
 
 def get_param_value(param_name, args, config):
