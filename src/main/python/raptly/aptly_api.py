@@ -454,7 +454,7 @@ class AptlyApi:
         self.republish_unstable(unstable_dist_name, gpg_public_key_id, public_repo_name)
 
     def republish_unstable(self, unstable_dist_name, gpg_public_key_id, public_repo_name):
-        # Drop any pre-existing publication of this distribution
+        # Drop any pre-existing publication of the unstable distribution
         if self.get_publication(distribution=unstable_dist_name, public_repo_name=public_repo_name):
             self.drop_published_distribution(self.aptly_api_base_url,
                                              local_repo_name=local(public_repo_name),
@@ -463,8 +463,7 @@ class AptlyApi:
         # Drop and re-create a dedicated snapshot from the local repo and publish
         # The format of the snapshot name is: <local_repo_name>.<timestamp>
         local_repo_snapshot_name = '%s.%s' % (local(public_repo_name), get_timestamp())
-        # self.drop_snapshot(local_repo_snapshot_name)
-        #
+
         # Re-create the snapshot of the local repo
         # curl -X POST -H 'Content-Type: application/json' --data '{"Name":"<local-repo-name>-snap-<distribution>"}'
         #     http://repo:8080/api/repos/a4pizza/snapshots
@@ -477,7 +476,7 @@ class AptlyApi:
         r = self.do_post(create_snapshot_url, data=json.dumps(payload), headers=headers)
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
-                                % ('Failed to create testing snapshot', r.status_code))
+                                % ('Failed to publish unstable distribution of repo: %s' % public_repo_name, r.status_code))
 
         #
         # Re-publish <local-repo-name>-snap-<distribution> as distribution 'unstable'
