@@ -56,15 +56,6 @@ def pkg_ref_version_key(mycmp):
     return K
 
 
-def print_package_refs(package_refs):
-    sorted_by_version = sorted(package_refs, key=pkg_ref_version_key(compare_versions))
-    sorted_by_name = sorted(sorted_by_version, key=lambda pr: pr[1:].split()[1])
-
-    for package_ref in sorted_by_name:
-        package_ref_fields = package_ref[1:].split()
-        print '  %s %s %s' % (package_ref_fields[1], package_ref_fields[2], package_ref_fields[0])
-
-
 def get_timestamp():
     return int(time.time())
 
@@ -476,7 +467,8 @@ class AptlyApi:
         r = self.do_post(create_snapshot_url, data=json.dumps(payload), headers=headers)
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
-                                % ('Failed to publish unstable distribution of repo: %s' % public_repo_name, r.status_code))
+                                % ('Failed to publish unstable distribution of repo: %s' % public_repo_name,
+                                   r.status_code))
 
         #
         # Re-publish <local-repo-name>-snap-<distribution> as distribution 'unstable'
@@ -704,7 +696,7 @@ class AptlyApi:
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                 % ('Failed to publish distribution %s for repo %s' % (
-                                    unstable_distribution_name, public_repo_name), r.status_code))
+                unstable_distribution_name, public_repo_name), r.status_code))
 
     def delete_packages(self, public_repo_name, package_refs):
         """Delete packages from an Aptly local repo
