@@ -29,7 +29,7 @@ Then you may install pytest and execute the unit tests.
     pip install pytest
     PYTHONPATH=src/main/python pytest src/test/python
 
-To install the integration tests (itests).
+To run the integration tests (itests).
 
     ./itest.sh
 
