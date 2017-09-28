@@ -11,7 +11,7 @@ def main():
     # Quick help
     if len(sys.argv) == 1:
         top_parser.print_help()
-        sys.exit(1)
+        sys.exit(0)
 
     main_args = top_parser.parse_args()
 
