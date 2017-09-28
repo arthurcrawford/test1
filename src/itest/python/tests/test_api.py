@@ -27,7 +27,7 @@ def test_deploy():
     time.sleep(2)
     before = api.pkg_list(repo_name, distribution)
     api.deploy(repo_name, get_path('margherita_1.0.0_all.deb'), '', distribution)
-    # time.sleep(2)
+    time.sleep(2)
     api.deploy(repo_name, get_path('margherita_1.1.0-2_all.deb'), '', distribution)
     time.sleep(2)
     after = api.pkg_list(repo_name, distribution)
