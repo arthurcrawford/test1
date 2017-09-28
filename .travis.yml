@@ -25,7 +25,7 @@ script:
   - PYTHONPATH=src/main/python pytest src/test/python
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./itest.sh; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then installer -allowUntrusted -verboseR -pkg /Users/travis/build/arthurcrawford/test1/build/com.a4pizza.raptly.pkg -target / ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then raptly fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then raptly; fi
 deploy:
   - provider: releases
     api_key:
