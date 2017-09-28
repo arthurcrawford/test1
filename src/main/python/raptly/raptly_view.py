@@ -1,6 +1,6 @@
 from aptly_api import pkg_ref_version_key
 from aptly_api import compare_versions
-from raptly_pkgs import sort_by_name_and_version, prune
+from packages import sort_by_name_and_version, prune
 import aptly_api
 import json
 

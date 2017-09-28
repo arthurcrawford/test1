@@ -1,4 +1,4 @@
-from raptly.raptly_pkgs import prune
+from raptly.packages import prune
 
 
 def test_prune():
