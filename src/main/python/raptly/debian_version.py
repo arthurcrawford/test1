@@ -1,6 +1,6 @@
 """Debian version utility.
 
-This module provides a verion comparison for Debian version strings.
+This module provides a version comparison for Debian version strings.
 
 Examples:
 

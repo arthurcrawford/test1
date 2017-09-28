@@ -22,10 +22,23 @@ def test_deploy():
     # Create a unique-ish 8 character repo name
     repo_name = str(uuid.uuid1())[:8]
     # Create the repo
-    api.create(repo_name, 'unstable')
-    time.sleep(3)
-    package_filename = os.path.join(os.path.dirname(__file__), 'margherita_1.0.0_all.deb')
-    api.deploy(repo_name, package_filename, '', 'unstable')
-    time.sleep(3)
-    api.undeploy(repo_name, 'margherita_1.0.0_all', 'unstable', False)
-    time.sleep(3)
+    distribution = 'unstable'
+    api.create(repo_name, distribution)
+    time.sleep(2)
+    before = api.pkg_list(repo_name, distribution)
+    api.deploy(repo_name, get_path('margherita_1.0.0_all.deb'), '', distribution)
+    # time.sleep(2)
+    api.deploy(repo_name, get_path('margherita_1.1.0-2_all.deb'), '', distribution)
+    time.sleep(2)
+    after = api.pkg_list(repo_name, distribution)
+    assert len(after) - len(before) == 2
+    api.undeploy(repo_name, 'margherita_1.0.0_all', distribution, False)
+    time.sleep(2)
+    api.undeploy(repo_name, 'margherita_1.1.0-2_all', distribution, False)
+    time.sleep(2)
+    final = api.pkg_list(repo_name, distribution)
+    assert len(before) == len(final)
+
+
+def get_path(deb):
+    return os.path.join(os.path.dirname(__file__), deb)

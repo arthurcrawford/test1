@@ -35,3 +35,5 @@ Then you may install pytest and execute the tests.
     
     sudo rm -rf /usr/local/opt/raptly/
     sudo pkgutil --forget com.a4pizza.raptly
+    
+    

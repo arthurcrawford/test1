@@ -1,5 +1,6 @@
 from aptly_api import pkg_ref_version_key
 from aptly_api import compare_versions
+from raptly_pkgs import sort_by_name_and_version, prune
 import aptly_api
 import json
 
@@ -44,20 +45,12 @@ def show_distribution(api, is_pruned, is_json, public_repo_name, distribution):
     #    debian_version = [2]
     # Correct Debian version sorting provided by debian_version.compare_versions
     unsorted = api.get_packages(matching_publication)
-    sorted_by_version = sorted(unsorted, key=aptly_api.pkg_ref_version_key(compare_versions))
-    sorted_by_name_and_version = sorted(sorted_by_version, key=lambda pr: pr[1:].split()[1])
 
-    final_list = sorted_by_name_and_version
     # If caller wants the list pruned:
     if is_pruned:
-        seen = set()
-        unique_name_sorted_by_name_and_version = []
-        for pr in reversed(sorted_by_name_and_version):
-            package_name = pr[1:].split()[1]
-            if package_name not in seen:
-                unique_name_sorted_by_name_and_version.append(pr)
-                seen.add(package_name)
-        final_list = list(reversed(unique_name_sorted_by_name_and_version))
+        final_list = prune(unsorted)
+    else:
+        final_list = sort_by_name_and_version(unsorted)
 
     if is_json:
         print json.dumps(final_list)
