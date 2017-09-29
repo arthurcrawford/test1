@@ -3,6 +3,7 @@ from aptly_api import compare_versions
 from packages import sort_by_name_and_version, prune
 import aptly_api
 import json
+import sys
 
 
 def print_package_refs(package_refs):
