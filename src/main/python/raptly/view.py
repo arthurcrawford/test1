@@ -57,3 +57,60 @@ def show_distribution(api, is_pruned, is_json, public_repo_name, distribution):
     else:
         # Print out one package name per line
         print_package_refs(final_list)
+
+
+def show_repos(repos, is_json=False):
+    """Show a list of repositories
+    :param repos: The list of repository names
+    :param is_json: Show as json string
+    """
+    if is_json:
+        print json.dumps(repos)
+    else:
+        # Print out one repo name per line
+        print("Repositories:")
+        for repo in repos:
+            print "  %s" % repo
+
+
+def show_distributions(dists, is_json):
+    """Show a list of distributions
+    :param dists: The list of distributions
+    :param is_json: Show as json string
+    """
+    if is_json:
+        print json.dumps(dists)
+    else:
+        # Print out one distribution name per line
+        print("Distributions:")
+        for dist in dists:
+            sys.stdout.write("  %s -> " % dist['Distribution'])
+            for source in dist['Sources']:
+                sys.stdout.write("%s " % source['Name'])
+            print("")
+
+
+def show_test_cmd_output(api, is_dry_run, new_packages, public_repo_name, release_id, snapshot_release_candidate,
+                         union):
+    """Show results from creating a test candidate
+    :param api: The aptly api wrapper
+    :param is_dry_run: Is this a dry run
+    :param new_packages: New packages that were added
+    :param public_repo_name: The public repo name (i.e. with '/' slashes)
+    :param release_id: The unique release ID
+    :param snapshot_release_candidate: The name of the snapshot for this test candidate
+    :param union: The list of packages constituting the test candidate
+    """
+    if len(union) <= 0:
+        print("No packages: nothing to do")
+        return
+
+    if len(new_packages) <= 0:
+        print("No new packages:")
+
+    print('Test candidate %s:' % release_id)
+    print('Snapshot: %s' % ('(dry run - none created)' if is_dry_run else snapshot_release_candidate))
+    print('Repository: %s' % public_repo_name)
+    print('Distribution: %s' % api.testing_name)
+    print('Packages:')
+    print_package_refs(union)

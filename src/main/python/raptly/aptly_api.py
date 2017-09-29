@@ -92,6 +92,11 @@ class AptlyApi:
         # Suppress SSL warnings for self-signed certificates
         requests.packages.urllib3.disable_warnings()
 
+        # Default distribution names
+        self.unstable_name = 'unstable'
+        self.testing_name = 'testing'
+        self.stable_name = 'stable'
+
     def drop_published_distribution(self, base_url, local_repo_name, distribution):
         """Drop a published distribution.
         :param base_url: The base API url (e.g. https://repo.hogarthww.com/aptly/api)

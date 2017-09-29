@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from raptly_cmd import *
+from commands import *
 import requests
 from requests.exceptions import SSLError, ConnectionError
 

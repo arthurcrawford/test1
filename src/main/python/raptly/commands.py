@@ -6,7 +6,7 @@ import sys
 import toml
 
 import aptly_api
-import raptly_view
+import view
 
 from _version import __version__
 from aptly_api import AptlyApi
@@ -168,31 +168,14 @@ def repo_list_cmd(url, args, key, cert):
     """Print repositories to stdout."""
 
     repos = get_api(args=args, url=url, key=key, cert=cert).list_published_repos()
-
-    if args.json:
-        print json.dumps(repos)
-    else:
-        # Print out one repo name per line
-        print("Repositories:")
-        for repo in repos:
-            print "  %s" % repo
+    view.show_repos(repos, args.json)
 
 
 def dist_list_cmd(url, args, key, cert):
     """Print distributions to stdout."""
 
     dists = get_api(args=args, url=url, key=key, cert=cert).list_distributions(public_repo_name=args.repo_name)
-
-    if args.json:
-        print json.dumps(dists)
-    else:
-        # Print out one distribution name per line
-        print("Distributions:")
-        for dist in dists:
-            sys.stdout.write("  %s -> " % dist['Distribution'])
-            for source in dist['Sources']:
-                sys.stdout.write("%s " % source['Name'])
-            print("")
+    view.show_distributions(dists, args.json)
 
 
 def deploy_cmd(args, url, key, cert):
@@ -210,7 +193,7 @@ def deploy_cmd(args, url, key, cert):
         api.republish_unstable(unstable_dist_name=args.distribution, public_repo_name=args.repo_name,
                                gpg_public_key_id=args.gpg_key)
 
-    raptly_view.show_distribution(api, False, False, args.repo_name, 'unstable')
+    view.show_distribution(api, False, False, args.repo_name, 'unstable')
 
 
 def undeploy_cmd(args, url, key, cert):
@@ -232,7 +215,7 @@ def undeploy_cmd(args, url, key, cert):
     else:
         print('Deleted packages:')
 
-    raptly_view.print_package_refs(deleted_packages)
+    view.print_package_refs(deleted_packages)
 
 
 def test_cmd(args, url, key, cert):
@@ -240,42 +223,35 @@ def test_cmd(args, url, key, cert):
 
     api = get_api(args=args, url=url, key=key, cert=cert)
 
-    unstable_distribution_name = 'unstable'
-    testing_distribution_name = 'testing'
-    stable_distribution_name = 'stable'
     public_repo_name = args.repo_name
+    release_id = args.release_id
+    is_dry_run = args.dry_run
 
     union, new_packages, snapshot_release_candidate = api.test(public_repo_name=public_repo_name,
                                                                package_query=args.packages,
-                                                               release_id=args.release_id,
-                                                               unstable_distribution_name=unstable_distribution_name,
-                                                               testing_distribution_name=testing_distribution_name,
-                                                               stable_distribution_name=stable_distribution_name,
-                                                               dry_run=args.dry_run)
-    if len(union) <= 0:
-        print("No packages: nothing to do")
-        return
+                                                               release_id=release_id,
+                                                               unstable_distribution_name=api.unstable_name,
+                                                               testing_distribution_name=api.testing_name,
+                                                               stable_distribution_name=api.stable_name,
+                                                               dry_run=is_dry_run)
 
-    if len(new_packages) <= 0:
-        print("No new packages:")
-
-    print('Test candidate %s:' % args.release_id)
-    print('Snapshot: %s' % ('(dry run - none created)' if args.dry_run else snapshot_release_candidate))
-    print('Repository: %s' % public_repo_name)
-    print('Distribution: %s' % testing_distribution_name)
-    print('Packages:')
-    raptly_view.print_package_refs(union)
-    # show(api, False, args.repo_name, 'testing')
+    view.show_test_cmd_output(api, is_dry_run, new_packages, public_repo_name, release_id,
+                              snapshot_release_candidate,
+                              union)
 
 
 def stage_cmd(args, url, key, cert):
     """Release package to staging distribution."""
 
     api = get_api(args=args, url=url, key=key, cert=cert)
-    api.stage(public_repo_name=args.repo_name, testing_distribution_name='testing',
-              staging_distribution_name='staging', release_id=args.release_id)
-    print('Staged release %s:' % args.release_id)
-    raptly_view.show_distribution(api, False, False, args.repo_name, 'staging')
+    public_repo_name = args.repo_name
+    release_id = args.release_id
+
+    api.stage(public_repo_name=public_repo_name, testing_distribution_name='testing',
+              staging_distribution_name='staging', release_id=release_id)
+
+    print('Staged release %s:' % release_id)
+    view.show_distribution(api, False, False, public_repo_name, 'staging')
 
 
 def release_cmd(args, url, key, cert):
@@ -285,7 +261,7 @@ def release_cmd(args, url, key, cert):
     api.release(public_repo_name=args.repo_name, staging_distribution_name='staging',
                 stable_distribution_name='stable', release_id=args.release_id)
     print('Released %s to stable:' % args.release_id)
-    raptly_view.show_distribution(api, False, False, args.repo_name, 'stable')
+    view.show_distribution(api, False, False, args.repo_name, 'stable')
 
 
 def get_api(args, url, key, cert):
@@ -373,8 +349,8 @@ def show_cmd(url, args, key=None, cert=None):
 
     # If both repo name and a distribution name are specified show the whole works
     api = get_api(args=args, url=url, key=key, cert=cert)
-    raptly_view.show_distribution(api, args.prune, args.json, public_repo_name=args.repo_name,
-                                  distribution=args.distribution)
+    view.show_distribution(api, args.prune, args.json, public_repo_name=args.repo_name,
+                           distribution=args.distribution)
 
 
 def get_param_value(param_name, args, config):
