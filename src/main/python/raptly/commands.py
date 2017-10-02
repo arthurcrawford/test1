@@ -52,6 +52,17 @@ def add_deploy_cmd(subparsers):
     cmd_parser.set_defaults(func=run_remote_cmd)
 
 
+def add_check_cmd(subparsers):
+    """ Add the parser for the "check" command."""
+    cmd_parser = subparsers.add_parser('check', help='Check a package and publish a "check" distribution')
+    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
+    cmd_parser.add_argument('package_file', nargs='?',
+                            help='Package file to check - e.g. ./pizza_1.2.deb.  If omitted, just clone stable.')
+    cmd_parser.add_argument('-g', '--gpg-key', dest='gpg_key',
+                            help='Public GPG key to use for signing on the server')
+    cmd_parser.set_defaults(func=run_remote_cmd)
+
+
 def add_undeploy_cmd(subparsers):
     """ Add the parser for the "undeploy" command."""
     cmd_parser = subparsers.add_parser('undeploy', help='Un-deploy a package from "unstable" distribution')
@@ -129,6 +140,7 @@ def create_cmd_parsers():
     # Create sub-parsers for commands
     subparsers = cmd_parser.add_subparsers(title='Commands', metavar='<command>', dest='command')
     add_create_cmd(subparsers)
+    add_check_cmd(subparsers)
     add_deploy_cmd(subparsers)
     add_undeploy_cmd(subparsers)
     add_test_cmd(subparsers)
@@ -178,6 +190,16 @@ def dist_list_cmd(url, args, key, cert):
     view.show_distributions(dists, args.json)
 
 
+def check_cmd(args, url, key, cert):
+    """Check package in a "check" distribution."""
+
+    api = get_api(args=args, url=url, key=key, cert=cert)
+
+    print('Check command not yet implemented')
+
+    view.show_distribution(api, False, False, args.repo_name, 'unstable')
+
+
 def deploy_cmd(args, url, key, cert):
     """Deploy package to unstable distribution."""
 
@@ -185,8 +207,8 @@ def deploy_cmd(args, url, key, cert):
 
     if args.package_file is not None:
         # Deploy the package and re-publish
-        api.deploy(public_repo_name=args.repo_name, package_file=args.package_file,
-                   gpg_key=args.gpg_key, unstable_dist_name=args.distribution)
+        api.deploy(public_repo_name=args.repo_name, package_files=[args.package_file],
+                   gpg_public_key_id=args.gpg_key, unstable_dist_name=args.distribution, upload_dir='myfiles')
         print('Package deployed:')
     else:
         # No package file, just re-publish
@@ -315,6 +337,8 @@ def run_remote_cmd(args):
         show_cmd(args=args, url=url, key=key, cert=cert)
     if args.command == 'create':
         create_cmd(args=args, url=url, key=key, cert=cert)
+    if args.command == 'check':
+        check_cmd(args=args, url=url, key=key, cert=cert)
     if args.command == 'deploy':
         deploy_cmd(args=args, url=url, key=key, cert=cert)
     if args.command == 'undeploy':

@@ -403,48 +403,62 @@ class AptlyApi:
 
         return package_refs
 
-    def deploy(self, public_repo_name, package_file, gpg_key, unstable_dist_name):
-        """Deploy a Debian package to the specified distribution.
-        :param public_repo_name: The name of the repository to deploy to
-        :param package_file: The Debian package file to deploy
-        :param gpg_key: The fingerprint of the GPG key used by the server to sign packages
-        :param unstable_dist_name: The name of the `unstable` distribution
+    def upload(self, package_filenames, upload_dir):
+        """Upload a Debian package to the aptly server's pool.
+        :param package_filenames: List of Debian package local file names
+        :param upload_dir: The sub-directory on the server to upload to
         """
 
-        gpg_public_key_id = gpg_key
-        upload_url_component = '/files'
-        repos_url_component = '/repos'
-        upload_dir = '/myfiles'
-        upload_file_url = '%s%s%s' % (self.aptly_api_base_url, upload_url_component, upload_dir)
-        deb_file_basename = os.path.basename(package_file)
+        upload_file_url = '%s/%s/%s' % (self.aptly_api_base_url, 'files', upload_dir)
 
         if self.verbose:
-            print('Deploying package: %s to %s %s %s' % (deb_file_basename, self.aptly_api_base_url,
-                                                         local(public_repo_name), unstable_dist_name))
+            print('Uploading file to Aptly pool at: %s' % upload_file_url)
 
-        # Upload the package to the server's file system
-        files = {'file': open(package_file, 'rb')}
-
-        if self.verbose:
-            print('Uploading file to Aptly server at: %s' % upload_file_url)
+        # Create list of file tuples for posting
+        files = []
+        for package_filename in package_filenames:
+            files.append(('file', open(package_filename, 'rb')))
 
         r = self.do_post(upload_file_url, files=files)
 
         if r.status_code != requests.codes.ok:
-            raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s' % ('Failed to upload file',
-                                                                                          r.status_code))
+            raise AptlyApiError(r.status_code,
+                                'Aptly API Error - %s - HTTP Error: %s' % ('Failed to upload file', r.status_code))
 
-        # Add the uploaded package file to the repo
-        add_package_to_repo_url = '%s%s/%s/file%s/%s' \
-                                  % (self.aptly_api_base_url, repos_url_component,
-                                     local(public_repo_name), upload_dir, deb_file_basename)
+        paths = json.loads(r.content)
         if self.verbose:
-            print('Adding file: %s to repo %s' % (add_package_to_repo_url, local(public_repo_name)))
+            print('Files written to server at aptly <rootDir>/upload/ ')
+            for path in paths:
+                print('%s' % path)
 
-        r = self.do_post(add_package_to_repo_url)
-        if r.status_code != requests.codes.ok:
-            raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to add uploaded file to repo: %s'
-                                % (r.status_code, local(public_repo_name)))
+        return paths
+
+    def deploy(self, public_repo_name, package_files, gpg_public_key_id, unstable_dist_name, upload_dir):
+        """Deploy a Debian package to the specified distribution.
+        :param public_repo_name: The name of the repository to deploy to
+        :param package_files: List of Debian package local file names
+        :param gpg_public_key_id: The fingerprint of the GPG key used by the server to sign packages
+        :param unstable_dist_name: The name of the `unstable` distribution
+        :param upload_dir: The sub-directory on the server to upload to
+        """
+
+        # Upload the package files
+        paths = self.upload(package_files, upload_dir)
+
+        # Deploy uploaded files to the repo
+        for path in paths:
+            add_package_to_repo_url = '%s/%s/%s/file/%s' \
+                                      % (self.aptly_api_base_url,
+                                         'repos',
+                                         local(public_repo_name),
+                                         path)
+            if self.verbose:
+                print('Adding file: %s to repo %s' % (add_package_to_repo_url, local(public_repo_name)))
+
+            r = self.do_post(add_package_to_repo_url)
+            if r.status_code != requests.codes.ok:
+                raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to add uploaded file to repo: %s'
+                                    % (r.status_code, local(public_repo_name)))
 
         # Snapshot the repo unstable distribution and re-publish
         self.republish_unstable(unstable_dist_name, gpg_public_key_id, public_repo_name)

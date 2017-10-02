@@ -23,7 +23,7 @@ mkdir -p "${SCRIPT_DIR}"
 mkdir -p "${COMPONENT_DIR}"
 
 # Create Python virtualenv, activate and install dependencies in it
-virtualenv --always-copy "${VENV_DIR}"
+virtualenv --always-copy --no-setuptools "${VENV_DIR}"
 source "${VENV_DIR}"/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
