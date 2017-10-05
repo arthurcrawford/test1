@@ -1,7 +1,6 @@
-import uuid
-import os
-import time
 import getpass
+import os
+import uuid
 
 from raptly.aptly_api import AptlyApi
 
@@ -31,6 +30,51 @@ def test_upload():
         assert '%s/%s' % (upload_dir, os.path.basename(package_filenames[i])) in paths
 
 
+def test_check():
+    api = AptlyApi('http://localhost:9876/api')
+    # Create a unique-ish repo name
+    public_repo_name = str(uuid.uuid1())[:13].replace('-', '/')
+    # Create the repo
+    distribution = 'unstable'
+    api.create(public_repo_name, distribution)
+    packages = ['fiorentina_0.9.7_all',
+                'margherita_1.0.0_all']
+    package_file_names = []
+    for package in packages:
+        package_file_names.append(get_path('%s.deb' % package))
+
+    api.deploy(public_repo_name, package_file_names, '', distribution, api.local_user)
+
+    # Move through test, staging & stable
+    release_id = 'TKT-999'
+    union, new_packages, snapshot_release_candidate = \
+        api.test(public_repo_name=public_repo_name,
+                 package_query='fiorentina_0.9.7_all|margherita_1.0.0_all',
+                 release_id=release_id,
+                 unstable_distribution_name='unstable',
+                 testing_distribution_name='testing',
+                 stable_distribution_name='stable',
+                 dry_run=False)
+
+    api.stage(public_repo_name=public_repo_name, testing_distribution_name=api.testing_name,
+              staging_distribution_name=api.staging_name, release_id=release_id)
+
+    api.release(public_repo_name=public_repo_name, staging_distribution_name=api.staging_name,
+                stable_distribution_name=api.stable_name, release_id=release_id)
+
+    # Create a check distribution
+    check_packages = ['fiorentina_1.0.0_all',
+                      'margherita_1.1.0-beta_all']
+    check_package_file_names = []
+    for check_package in check_packages:
+        check_package_file_names.append(get_path('%s.deb' % check_package))
+
+    api.check(public_repo_name=public_repo_name, package_files=check_package_file_names, gpg_public_key_id='',
+              upload_dir=api.local_user)
+
+    print('hello')
+
+
 def test_deploy():
     api = AptlyApi('http://localhost:9876/api')
     # Create a unique-ish 8 character repo name
@@ -38,7 +82,6 @@ def test_deploy():
     # Create the repo
     distribution = 'unstable'
     api.create(repo_name, distribution)
-    time.sleep(2)
     before = api.pkg_list(repo_name, distribution)
     packages = ['fiorentina_0.9.7_all',
                 'fiorentina_1.0.0_all',
@@ -50,13 +93,10 @@ def test_deploy():
         package_file_names.append(get_path('%s.deb' % package))
 
     api.deploy(repo_name, package_file_names, '', distribution, 'test')
-    time.sleep(2)
     after = api.pkg_list(repo_name, distribution)
     assert len(after) - len(before) == len(package_file_names)
     api.undeploy(repo_name, packages[0], distribution, False)
-    time.sleep(2)
     api.undeploy(repo_name, packages[1], distribution, False)
-    time.sleep(2)
     final = api.pkg_list(repo_name, distribution)
     assert len(packages) - len(final) == 2
 
@@ -68,10 +108,8 @@ def test_test():
     # Create the repo
     distribution = 'unstable'
     api.create(repo_name, distribution)
-    time.sleep(2)
     before = api.pkg_list(repo_name, distribution)
     api.deploy(repo_name, [get_path('margherita_1.0.0_all.deb')], '', distribution, 'test')
-    time.sleep(2)
 
     # Create a test candidate
     union, new_packages, snapshot_release_candidate = api.test(public_repo_name=repo_name,

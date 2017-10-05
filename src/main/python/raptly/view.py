@@ -1,9 +1,9 @@
-from aptly_api import pkg_ref_version_key
-from aptly_api import compare_versions
-from packages import sort_by_name_and_version, prune
-import aptly_api
 import json
 import sys
+
+from aptly_api import RaptlyError
+from debian_version import compare_versions
+from pkg_util import sort_by_name_and_version, prune, pkg_ref_version_key
 
 
 def print_package_refs(package_refs):
@@ -29,7 +29,7 @@ def show_distribution(api, is_pruned, is_json, public_repo_name, distribution):
     # Get the publication of the specified repo + distribution
     matching_publication = api.get_publication(public_repo_name=public_repo_name, distribution=distribution)
     if matching_publication is None:
-        raise aptly_api.RaptlyError('Distribution not found: %s %s' % (public_repo_name, distribution))
+        raise RaptlyError('Distribution not found: %s %s' % (public_repo_name, distribution))
 
     print('Prefix:       %s' % matching_publication['Prefix'])
     print('Distribution: %s' % matching_publication['Distribution'])

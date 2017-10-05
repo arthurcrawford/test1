@@ -1,14 +1,15 @@
-import time
-import re
-
+import getpass
 import json
 import os
+import re
+import time
 import urllib
+import uuid
 
 import requests
 from requests.auth import HTTPBasicAuth
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from debian_version import compare_versions
+
+from pkg_util import prune
 
 
 class RaptlyError(Exception):
@@ -20,40 +21,18 @@ class RaptlyError(Exception):
 
 
 class AptlyApiError(Exception):
-    def __init__(self, value, msg):
+    def __init__(self, value, msg, aptly_detail=None):
         self.value = value
         self.msg = msg
+        self.aptly_msg = ''
+        if aptly_detail is not None:
+            aptly_errors = json.loads(aptly_detail)
+            for err in aptly_errors:
+                self.aptly_msg += '%s\n' % err['error']
+                self.aptly_msg += '%s\n' % err['meta']
 
     def __str__(self):
         return repr(self.value)
-
-
-def pkg_ref_version_key(mycmp):
-    """Convert a cmp= function into a key= function, to prepare for Python 3's removal of cmp= style comparator"""
-
-    class K:
-        def __init__(self, obj, *args):
-            self.obj = obj.split()[2]
-
-        def __lt__(self, other):
-            return mycmp(self.obj, other.obj) < 0
-
-        def __gt__(self, other):
-            return mycmp(self.obj, other.obj) > 0
-
-        def __eq__(self, other):
-            return mycmp(self.obj, other.obj) == 0
-
-        def __le__(self, other):
-            return mycmp(self.obj, other.obj) <= 0
-
-        def __ge__(self, other):
-            return mycmp(self.obj, other.obj) >= 0
-
-        def __ne__(self, other):
-            return mycmp(self.obj, other.obj) != 0
-
-    return K
 
 
 def get_timestamp():
@@ -76,7 +55,6 @@ class AptlyApi:
         self.aptly_api_base_url = repo_url
         self.verbose = verbose
         self.verify = not skip_ssl
-        self.user = user
         self.headers = {}
         (self.username, self.password) = user.split(':')
         self.auth = HTTPBasicAuth(self.username, self.password)
@@ -95,7 +73,11 @@ class AptlyApi:
         # Default distribution names
         self.unstable_name = 'unstable'
         self.testing_name = 'testing'
+        self.staging_name = 'staging'
         self.stable_name = 'stable'
+
+        # The client local user name
+        self.local_user = getpass.getuser()
 
     def drop_published_distribution(self, base_url, local_repo_name, distribution):
         """Drop a published distribution.
@@ -160,15 +142,16 @@ class AptlyApi:
         return new_packages
 
     def create_empty_snapshot_for_repo(self, public_repo_name):
-        """Create an empty snapshot with the name <public_repo_name>.timestamp
+        """Create an empty snapshot with the name <local_repo_name>.<create>.<8 char uuid>.<timestamp>.<local_user>
         :param public_repo_name: The public repo name
         """
-        snapshot_name = "%s.%s" % (local(public_repo_name), get_timestamp())
+        snapshot_name = "%s.%s.%s.%s.%s" % (local(public_repo_name), 'create', str(uuid.uuid1())[:8], get_timestamp(),
+                                            self.local_user)
         payload = {'Name': snapshot_name}
         headers = {'content-type': 'application/json'}
         r = self.do_post('%s/snapshots' % self.aptly_api_base_url, data=json.dumps(payload), headers=headers)
         if self.verbose:
-            print('Creating snapshot %s' % snapshot_name)
+            print('Creating snapshot %s for repo %s' % (snapshot_name, public_repo_name))
 
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to create snapshot: %s'
@@ -210,8 +193,10 @@ class AptlyApi:
 
     def do_post(self, url, files=None, data=None, headers=None):
         """Execute POST request on specified URL.
-        :param files: List of files to upload in the POST.
         :param url: The URL to make the GET request on.
+        :param files: List of files to upload in the POST.
+        :param data: Post data.
+        :param headers: Request headers.
         """
         return requests.post(url, cert=self.cert, auth=self.auth, verify=self.verify, data=data, headers=headers,
                              files=files)
@@ -267,6 +252,29 @@ class AptlyApi:
             pass
 
         return packages
+
+    def get_local_repo(self, public_repo_name):
+        """Get the specified local repo
+        :param public_repo_name: The published (public - i.e. with slashes '/') name of the local repo
+        """
+
+        local_repos = self.get_local_repos()
+        matching_repos = [x for x in local_repos if x['Name'] == local(public_repo_name)]
+        if len(matching_repos) > 0:
+            return matching_repos[0]
+        else:
+            return None
+
+    def get_local_repos(self):
+        """Get all snapshots, sorted in order of creation"""
+
+        # Get all snapshots on the system
+        repos_rest_url = '%s/repos' % self.aptly_api_base_url
+        r = self.do_get(repos_rest_url)
+        if r.status_code != requests.codes.ok:
+            raise AptlyApiError(r.status_code,
+                                'Aptly API Error - %s - HTTP Error: %s' % (repos_rest_url, r.status_code))
+        return r.json()
 
     def get_snapshots(self):
         """Get all snapshots, sorted in order of creation"""
@@ -385,21 +393,20 @@ class AptlyApi:
         else:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s' % (version_url, r.status_code))
 
-    def repo_create(self):
-        pass
-
     def undeploy(self, public_repo_name, package_query, unstable_dist_name, dry_run):
         """Un-deploy a package from the unstable distribution.
         :param public_repo_name: The name of the repository to un-deploy from
         :param package_query: Aptly query defining the package(s) to un-deploy
         :param unstable_dist_name: The name of the `unstable` distribution
+        :param dry_run: If True, just report on what would have happened
         """
         package_refs = self.query_packages(public_repo_name=public_repo_name, distribution_name=unstable_dist_name,
                                            package_query=package_query)
 
         if dry_run is False:
             retval = self.delete_packages(public_repo_name=public_repo_name, package_refs=package_refs)
-            self.republish_unstable(unstable_dist_name, None, public_repo_name)
+            self.republish_unstable(unstable_dist_name=unstable_dist_name, gpg_public_key_id=None,
+                                    public_repo_name=public_repo_name, reason='undeploy')
 
         return package_refs
 
@@ -433,6 +440,49 @@ class AptlyApi:
 
         return paths
 
+    def check(self, public_repo_name, package_files, gpg_public_key_id, upload_dir, is_pruned=True):
+        """ Check package files with reference to the stable distribution
+        :param public_repo_name: The name of the repository to deploy to
+        :param package_files: List of Debian package local file names
+        :param gpg_public_key_id: The fingerprint of the GPG key used by the server to sign packages
+        :param upload_dir: The sub-directory on the server to upload to
+        :param is_pruned: If True, the resulting check repo will contain only latest versions of all packages
+        """
+
+        # Create the new private check repo, if it doesn't already exist
+        check_repo_public_name = '%s/%s' % (public_repo_name, self.local_user)
+        local_repo = self.get_local_repo(check_repo_public_name)
+        if local_repo is None:
+            self.create(check_repo_public_name, 'check')
+
+        # Upload the package files to the private check repo
+        self.upload_packages(package_files, check_repo_public_name, upload_dir)
+
+        # Create a new, temporary snapshot of the check repo
+        temp_new_pkgs_snapshot_name = '%s-snap-temp-new-pkgs' % local(check_repo_public_name)
+        self.drop_snapshot(temp_new_pkgs_snapshot_name)
+        self.create_local_repo_snapshot(temp_new_pkgs_snapshot_name, check_repo_public_name)
+        check_package_refs = self.get_packages_from_snapshot(temp_new_pkgs_snapshot_name)
+
+        # Get the snapshot source of the stable distribution
+        # TODO - fail early if there is no stable distribution
+        stable_distribution_name = 'stable'
+        stable_snapshot_name = self.get_snapshot_for_publication(distribution=stable_distribution_name,
+                                                                 public_repo_name=public_repo_name)
+        stable_package_refs = self.get_packages_from_snapshot(stable_snapshot_name)
+
+        # Create union snapshot of stable + check
+        union = stable_package_refs + check_package_refs
+        if is_pruned:
+            union = prune(union)
+
+        target_check_snapshot_name = '%s.%s' % (local(check_repo_public_name), get_timestamp())
+        self.create_snapshot_from_package_refs(union, [stable_snapshot_name, temp_new_pkgs_snapshot_name],
+                                               target_check_snapshot_name)
+
+        # Publish the union snapshot as the check distribution
+        self.publish('check', check_repo_public_name, target_check_snapshot_name)
+
     def deploy(self, public_repo_name, package_files, gpg_public_key_id, unstable_dist_name, upload_dir):
         """Deploy a Debian package to the specified distribution.
         :param public_repo_name: The name of the repository to deploy to
@@ -443,8 +493,14 @@ class AptlyApi:
         """
 
         # Upload the package files
-        paths = self.upload(package_files, upload_dir)
+        self.upload_packages(package_files, public_repo_name, upload_dir)
 
+        # Snapshot the repo unstable distribution and re-publish
+        self.republish_unstable(unstable_dist_name=unstable_dist_name, gpg_public_key_id=gpg_public_key_id,
+                                public_repo_name=public_repo_name, reason='deploy')
+
+    def upload_packages(self, package_files, public_repo_name, upload_dir):
+        paths = self.upload(package_files, upload_dir)
         # Deploy uploaded files to the repo
         for path in paths:
             add_package_to_repo_url = '%s/%s/%s/file/%s' \
@@ -460,24 +516,44 @@ class AptlyApi:
                 raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to add uploaded file to repo: %s'
                                     % (r.status_code, local(public_repo_name)))
 
-        # Snapshot the repo unstable distribution and re-publish
-        self.republish_unstable(unstable_dist_name, gpg_public_key_id, public_repo_name)
+    def republish_unstable(self, unstable_dist_name, gpg_public_key_id, public_repo_name, reason):
+        """ Drop and re-publish the unstable distribution.  The unstable distribution is a published snapshot of the
+        local repository.
+        :param unstable_dist_name: Name of the unstable distribution
+        :param gpg_public_key_id: Non-default GPG key to use if required
+        :param public_repo_name: The public repo name (i.e. with slashes '/')
+        :param reason: The reason that this snapshot is being created (forms part of snapshot name)
+        """
+        # The format of the snapshot name is: <local_repo_name>.<timestamp>
+        snapshot_name = "%s.%s.%s.%s.%s" % (local(public_repo_name), reason, str(uuid.uuid1())[:8], get_timestamp(),
+                                            self.local_user)
+        self.republish_dist(unstable_dist_name, gpg_public_key_id, public_repo_name, snapshot_name)
 
-    def republish_unstable(self, unstable_dist_name, gpg_public_key_id, public_repo_name):
+    def republish_dist(self, dist_name, gpg_public_key_id, public_repo_name, local_repo_snapshot_name):
+        """ Drop and re-publish the named distribution.
+        :param dist_name: The distribution name
+        :param gpg_public_key_id: Non-default GPG key to use if required
+        :param public_repo_name: The public repo name (i.e. with slashes '/')
+        :param local_repo_snapshot_name: Name of the local repo snapshot to create
+        """
         # Drop any pre-existing publication of the unstable distribution
-        if self.get_publication(distribution=unstable_dist_name, public_repo_name=public_repo_name):
+        if self.get_publication(distribution=dist_name, public_repo_name=public_repo_name):
             self.drop_published_distribution(self.aptly_api_base_url,
                                              local_repo_name=local(public_repo_name),
-                                             distribution=unstable_dist_name)
+                                             distribution=dist_name)
 
-        # Drop and re-create a dedicated snapshot from the local repo and publish
-        # The format of the snapshot name is: <local_repo_name>.<timestamp>
-        local_repo_snapshot_name = '%s.%s' % (local(public_repo_name), get_timestamp())
+        # Create a new snapshot of the local repo
+        self.create_local_repo_snapshot(local_repo_snapshot_name, public_repo_name)
 
-        # Re-create the snapshot of the local repo
-        # curl -X POST -H 'Content-Type: application/json' --data '{"Name":"<local-repo-name>-snap-<distribution>"}'
-        #     http://repo:8080/api/repos/a4pizza/snapshots
-        #
+        # Publish the snapshot
+        self.publish_snapshot(self.aptly_api_base_url, dist_name, gpg_public_key_id, local_repo_snapshot_name,
+                              local(public_repo_name))
+
+    def create_local_repo_snapshot(self, local_repo_snapshot_name, public_repo_name):
+        """ Create a snapshot for a local repo
+        :param local_repo_snapshot_name: The name of the snapshot to create
+        :param public_repo_name: The public repo name (i.e. with slashes '/')
+        """
         create_snapshot_url = '%s/repos/%s/snapshots' % (self.aptly_api_base_url, local(public_repo_name))
         if self.verbose:
             print('Creating snapshot: %s' % create_snapshot_url)
@@ -486,14 +562,8 @@ class AptlyApi:
         r = self.do_post(create_snapshot_url, data=json.dumps(payload), headers=headers)
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
-                                % ('Failed to publish unstable distribution of repo: %s' % public_repo_name,
-                                   r.status_code))
-
-        #
-        # Re-publish <local-repo-name>-snap-<distribution> as distribution 'unstable'
-        #
-        self.publish_snapshot(self.aptly_api_base_url, unstable_dist_name, gpg_public_key_id, local_repo_snapshot_name,
-                              local(public_repo_name))
+                                % ('Failed to create snapshot %s distribution of repo: %s' % (
+                                  local_repo_snapshot_name, public_repo_name), r.status_code))
 
     def test(self, public_repo_name, package_query, release_id, unstable_distribution_name, testing_distribution_name,
              stable_distribution_name, dry_run):
@@ -653,14 +723,14 @@ class AptlyApi:
 
     def publish(self, dest_distribution_name, public_repo_name, source_snapshot):
         """Publish or re-publish the distribution from the source snapshot.
-        :param dest_distribution_name: The destination publication.
-        :param public_repo_name: The published name of the repository.
+        :param dest_distribution_name: The destination published distribution name.
+        :param public_repo_name: The published name (prefix) of the repository.
         :param source_snapshot: The snapshot to publish.
         """
         # Check if dest distribution already exists
         dest_publication = self.get_publication(dest_distribution_name, public_repo_name)
         if dest_publication is None:
-            # Publish the release candidate snapshot
+            # Publish the source snapshot
             payload = {'SourceKind': 'snapshot',
                        'Sources': [{'Name': source_snapshot}],
                        'Architectures': ['amd64', 'all'],
@@ -671,9 +741,9 @@ class AptlyApi:
                              headers=headers)
             if r.status_code != 201:
                 raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
-                                    % ('Failed to promote to %s' % dest_distribution_name, r.status_code))
+                                    % ('Failed to publish to %s' % dest_distribution_name, r.status_code))
         else:
-            # Re-publish the release candidate snapshot as stable
+            # Re-publish the snapshot
             payload = {'Snapshots': [{'Component': 'main', 'Name': source_snapshot}]}
             headers = {'content-type': 'application/json'}
             r = self.do_put('%s/publish//%s/%s' % (
@@ -686,6 +756,7 @@ class AptlyApi:
 
     def create(self, public_repo_name, unstable_distribution_name):
         """Create an Aptly local repository
+        :param unstable_distribution_name: The name used for the "unstable" distribution of this repo
         :param public_repo_name: The published name of the repository
         """
         payload = {'Name': local(public_repo_name),
@@ -698,12 +769,12 @@ class AptlyApi:
                          headers=headers)
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
-                                % ('Failed to create repo %s' % public_repo_name, r.status_code))
+                                % ('Failed to create repo %s' % public_repo_name, r.status_code), r.content)
 
         # Create an empty snapshot for this repo
         snapshot_name = self.create_empty_snapshot_for_repo(public_repo_name)
 
-        # Publish the release candidate snapshot
+        # Publish the snapshot
         payload = {'SourceKind': 'snapshot',
                    'Sources': [{'Name': snapshot_name}],
                    'Architectures': ['amd64', 'all'],
@@ -715,7 +786,7 @@ class AptlyApi:
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                 % ('Failed to publish distribution %s for repo %s' % (
-                unstable_distribution_name, public_repo_name), r.status_code))
+                                  unstable_distribution_name, public_repo_name), r.status_code))
 
     def delete_packages(self, public_repo_name, package_refs):
         """Delete packages from an Aptly local repo

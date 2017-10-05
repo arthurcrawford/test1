@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
-from commands import *
+import sys
+
 import requests
 from requests.exceptions import SSLError, ConnectionError
+
+from aptly_api import AptlyApiError, RaptlyError
+from commands import *
 
 
 def main():
@@ -26,30 +30,39 @@ def main():
         main_args.func(main_args)
 
     except SSLError as se:
-        print "SSL Error: %s" % main_args.url
+        print("SSL Error: %s" % main_args.url)
         sys.exit(1)
 
     except ConnectionError as ce:
-        print "Connection refused: %s" % main_args.url
+        print("Connection refused: %s" % main_args.url)
         sys.exit(1)
 
-    except aptly_api.AptlyApiError as apte:
+    except AptlyApiError as apte:
         if apte.value == requests.codes.UNAUTHORIZED:
-            print 'Unauthorized! %s ' % apte.msg
+            print('Unauthorized! %s ' % apte.msg)
         elif apte.value == requests.codes.NOT_FOUND:
-            print 'Not Found! %s ' % apte.msg
+            print('Not Found! %s ' % apte.msg)
+        elif apte.value == requests.codes.bad_request:
+            # Don't know why but aptly uses 400 response code for conflicts
+            print('Conflicts or exists! %s ' % apte.msg)
         else:
-            print apte.msg
+            print(apte.msg)
+
+        # Verbose server details from Aptly
+        if main_args.verbose and apte.aptly_msg:
+            print('Server details:')
+            print(apte.aptly_msg)
+
         sys.exit(1)
 
-    except aptly_api.RaptlyError as rapte:
-        print rapte.value
+    except RaptlyError as rapte:
+        print(rapte.value)
         sys.exit(1)
 
     except Exception as e:
         template = "An exception of type {0} occured. Arguments:\n{1!r}"
         message = template.format(type(e).__name__, e.args)
-        print message
+        print(message)
         raise
 
 

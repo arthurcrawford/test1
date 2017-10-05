@@ -1,16 +1,12 @@
 import argparse
 import json
 import os
-import sys
 
 import toml
 
-import aptly_api
 import view
-
 from _version import __version__
 from aptly_api import AptlyApi
-from debian_version import compare_versions
 
 
 # TODO - coloured output for new packages etc
@@ -43,8 +39,8 @@ def add_deploy_cmd(subparsers):
     """ Add the parser for the "deploy" command."""
     cmd_parser = subparsers.add_parser('deploy', help='Deploy a package and publish "unstable" distribution')
     cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
-    cmd_parser.add_argument('package_file', nargs='?',
-                            help='Package file to deploy - e.g. ./pizza_1.2.deb.  If omitted, just re-publish')
+    cmd_parser.add_argument('package_files', nargs='*',
+                            help='Package files to deploy - e.g. ./pizza_1.2.deb.  If omitted, just re-publish')
     cmd_parser.add_argument('-g', '--gpg-key', dest='gpg_key',
                             help='Public GPG key to use for signing on the server')
     cmd_parser.add_argument('-d', '--distribution', default='unstable',
@@ -56,8 +52,8 @@ def add_check_cmd(subparsers):
     """ Add the parser for the "check" command."""
     cmd_parser = subparsers.add_parser('check', help='Check a package and publish a "check" distribution')
     cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
-    cmd_parser.add_argument('package_file', nargs='?',
-                            help='Package file to check - e.g. ./pizza_1.2.deb.  If omitted, just clone stable.')
+    cmd_parser.add_argument('package_files', nargs='*',
+                            help='Package files to check - e.g. ./pizza_1.2.deb.  If omitted, just clone stable.')
     cmd_parser.add_argument('-g', '--gpg-key', dest='gpg_key',
                             help='Public GPG key to use for signing on the server')
     cmd_parser.set_defaults(func=run_remote_cmd)
@@ -195,9 +191,14 @@ def check_cmd(args, url, key, cert):
 
     api = get_api(args=args, url=url, key=key, cert=cert)
 
-    print('Check command not yet implemented')
+    if args.package_files:
+        # Check the packages in private repo and re-publish
+        api.check(public_repo_name=args.repo_name, package_files=args.package_files, gpg_public_key_id='',
+                  upload_dir=api.local_user)
+    # else:
+    #     # Just create private clone of stable
 
-    view.show_distribution(api, False, False, args.repo_name, 'unstable')
+    # view.show_distribution(api, False, False, '%s/%s' % (args.repo_name, api.local_user), 'check')
 
 
 def deploy_cmd(args, url, key, cert):
@@ -205,15 +206,14 @@ def deploy_cmd(args, url, key, cert):
 
     api = get_api(args=args, url=url, key=key, cert=cert)
 
-    if args.package_file is not None:
-        # Deploy the package and re-publish
-        api.deploy(public_repo_name=args.repo_name, package_files=[args.package_file],
-                   gpg_public_key_id=args.gpg_key, unstable_dist_name=args.distribution, upload_dir='myfiles')
-        print('Package deployed:')
+    if args.package_files:
+        # Deploy the packages and re-publish
+        api.deploy(public_repo_name=args.repo_name, package_files=args.package_files,
+                   gpg_public_key_id=args.gpg_key, unstable_dist_name=args.distribution, upload_dir=api.local_user)
     else:
-        # No package file, just re-publish
+        # No package files, just re-publish
         api.republish_unstable(unstable_dist_name=args.distribution, public_repo_name=args.repo_name,
-                               gpg_public_key_id=args.gpg_key)
+                               gpg_public_key_id=args.gpg_key, reason='deploy')
 
     view.show_distribution(api, False, False, args.repo_name, 'unstable')
 
