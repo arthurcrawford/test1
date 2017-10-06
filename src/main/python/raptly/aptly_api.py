@@ -375,10 +375,18 @@ class AptlyApi:
         return r.json()
 
     def list_distributions(self, public_repo_name):
-        """Return the list of published distributions on the Aptly server."""
+        """Return the list of published distributions for the specified repo."""
         local_repo = self.get_local_repo(public_repo_name)
         publications = self.get_publications()
         publications_for_repo = [x for x in publications if x['Prefix'] == public_repo_name]
+        return sorted(publications_for_repo)
+
+    def list_checks(self, public_repo_name):
+        """Return the list of check distributions for the specified repo."""
+        check_public_repo_name = "%s/%s" % (public_repo_name, self.local_user)
+        local_repo = self.get_local_repo(check_public_repo_name)
+        publications = self.get_publications()
+        publications_for_repo = [x for x in publications if x['Prefix'] == check_public_repo_name]
         return sorted(publications_for_repo)
 
     def list_published_repos(self):

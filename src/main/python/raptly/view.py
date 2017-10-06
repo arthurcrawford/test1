@@ -74,21 +74,33 @@ def show_repos(repos, is_json=False):
             print "  %s" % repo
 
 
-def show_distributions(dists, is_json):
+def show_distributions(api, public_repo_name, dists, checks, is_json):
     """Show a list of distributions
+    :param api: AptlyApi
     :param dists: The list of distributions
+    :param checks: List of check distributions
     :param is_json: Show as json string
     """
     if is_json:
         print json.dumps(dists)
+        if checks:
+            print json.dumps(checks)
     else:
         # Print out one distribution name per line
-        print("Distributions:")
+        print("Distributions: %s" % public_repo_name)
         for dist in dists:
             sys.stdout.write("  %s -> " % dist['Distribution'])
             for source in dist['Sources']:
                 sys.stdout.write("%s " % source['Name'])
             print("")
+        if checks:
+            print("Checks: %s" % ("%s/%s" % (public_repo_name, api.local_user)))
+            for check in checks:
+                sys.stdout.write("  %s -> " % check['Distribution'])
+                for source in check['Sources']:
+                    sys.stdout.write("%s " % source['Name'])
+                print("")
+
 
 
 def show_test_cmd_output(api, is_dry_run, new_packages, public_repo_name, release_id, snapshot_release_candidate,

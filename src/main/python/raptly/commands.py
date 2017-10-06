@@ -115,6 +115,7 @@ def add_show_cmd(subparsers):
     cmd_parser.add_argument('distribution', nargs='?', help='The name of the distribution to show')
     cmd_parser.add_argument('-j', '--json', dest='json', action='store_true', help='Print result as json')
     cmd_parser.add_argument('-p', '--prune', dest='prune', action='store_true', help='Show pruned by latest version')
+    cmd_parser.add_argument('-c', '--with-checks', dest='with_checks', action='store_true', help='Show check repo')
     cmd_parser.set_defaults(json=False)
     cmd_parser.set_defaults(func=run_remote_cmd)
 
@@ -180,11 +181,15 @@ def repo_list_cmd(url, args, key, cert):
     view.show_repos(repos, args.json)
 
 
-def dist_list_cmd(url, args, key, cert):
+def dist_list_cmd(url, args, key, cert, with_checks):
     """Print distributions to stdout."""
 
-    dists = get_api(args=args, url=url, key=key, cert=cert).list_distributions(public_repo_name=args.repo_name)
-    view.show_distributions(dists, args.json)
+    api = get_api(args=args, url=url, key=key, cert=cert)
+    dists = api.list_distributions(public_repo_name=args.repo_name)
+    checks = []
+    if with_checks:
+        checks = api.list_checks(public_repo_name=args.repo_name)
+    view.show_distributions(api, args.repo_name, dists, checks, args.json)
 
 
 def check_cmd(args, url, key, cert):
@@ -366,7 +371,7 @@ def show_cmd(url, args, key=None, cert=None):
 
     # If no distribution name specified list all distributions for the specified repo
     if args.distribution is None:
-        dist_list_cmd(url=url, args=args, key=key, cert=cert)
+        dist_list_cmd(url=url, args=args, key=key, cert=cert, with_checks=args.with_checks)
         return
 
     # If both repo name and a distribution name are specified show the whole works
