@@ -215,9 +215,9 @@ class AptlyApi:
         if self.verbose:
             print('Listing packages from repo: %s in distribution: %s' % (public_repo_name, distribution))
 
-        matching_publication = self.get_publication(distribution, public_repo_name)
+        matching_publication = self.find_publication(distribution, public_repo_name)
 
-        return self.get_packages(matching_publication)
+        return self.find_packages(matching_publication)
 
     def query_packages(self, public_repo_name, distribution_name, package_query):
         """Return list of matching packages in the specified repo/distribution or empty list if no match
@@ -236,7 +236,7 @@ class AptlyApi:
 
         return self.filter_packages(package_query, snapshot_name)
 
-    def get_packages(self, publication):
+    def find_packages(self, publication):
         """Return the list of packages for the specified publication."""
         sources = publication['Sources']
         packages = []
@@ -254,19 +254,30 @@ class AptlyApi:
         return packages
 
     def get_local_repo(self, public_repo_name):
-        """Get the specified local repo
-        :param public_repo_name: The published (public - i.e. with slashes '/') name of the local repo
+        """Get the specified repo
+        :param public_repo_name: Public name of the repo
+        :return: The repo
+        :raises RaptlyError: If repo doesn't exist
         """
+        repo = self.find_local_repo(public_repo_name=public_repo_name)
+        if repo is None:
+            raise RaptlyError("Specified repo '%s' doesn't exist" % public_repo_name)
+        return repo
 
-        local_repos = self.get_local_repos()
+    def find_local_repo(self, public_repo_name):
+        """Find the specified local repo
+        :param public_repo_name: The published (public - i.e. with slashes '/') name of the local repo
+        ;return: Local repo if it exists, None otherwise
+        """
+        local_repos = self.find_local_repos()
         matching_repos = [x for x in local_repos if x['Name'] == local(public_repo_name)]
         if len(matching_repos) > 0:
             return matching_repos[0]
         else:
             return None
 
-    def get_local_repos(self):
-        """Get all snapshots, sorted in order of creation"""
+    def find_local_repos(self):
+        """Find all local repos, sorted in order of creation"""
 
         # Get all snapshots on the system
         repos_rest_url = '%s/repos' % self.aptly_api_base_url
@@ -276,8 +287,8 @@ class AptlyApi:
                                 'Aptly API Error - %s - HTTP Error: %s' % (repos_rest_url, r.status_code))
         return r.json()
 
-    def get_snapshots(self):
-        """Get all snapshots, sorted in order of creation"""
+    def find_snapshots(self):
+        """Find all snapshots, sorted in order of creation"""
 
         # Get all snapshots on the system
         snapshots_rest_url = '%s/snapshots?sort=time' % self.aptly_api_base_url
@@ -289,7 +300,7 @@ class AptlyApi:
 
     def find_release_candidate_snapshots(self, local_repo_name, release_id):
         """Find snapshot release candidates matching the form local_repo_name.release_id.*"""
-        snapshots = self.get_snapshots()
+        snapshots = self.find_snapshots()
         pattern = re.compile('%s\.%s\..*' % (local_repo_name, release_id))
         matching_snapshots = [x for x in snapshots if pattern.match(x['Name'])]
         return matching_snapshots
@@ -297,11 +308,13 @@ class AptlyApi:
     def get_snapshot_for_publication(self, distribution, public_repo_name):
         """Get the single snapshot published by the specified distribution public repo name.
         Throw RaptlyError if there is *not* a single snapshot source for the published repo and distribution.
-        :param public_repo_name: The published repo name
         :param distribution: The distribution
+        :param public_repo_name: The published repo name
         """
+        publication = self.find_publication(distribution, public_repo_name)
 
-        publication = self.get_publication(distribution, public_repo_name)
+        if publication is None:
+            raise RaptlyError("There is no '%s' distribution for repo '%s'" % (distribution, public_repo_name))
 
         if publication['SourceKind'] != 'snapshot':
             raise RaptlyError('%s %s not published from snapshot' % (public_repo_name, distribution))
@@ -314,11 +327,17 @@ class AptlyApi:
 
         return publication['Sources'][0]['Name']
 
-    def get_publication(self, distribution, public_repo_name):
-        """Get the publication for the specified distribution and public repo name.
-        :param public_repo_name: The published repo name
+    def find_publication(self, distribution, public_repo_name):
+        """Find the published distribution, if it exists, of the specified repo.
+        Throw an error if the specified repo does not exist.
         :param distribution: The distribution
+        :param public_repo_name: The repo name
+        ;return The matching publication if it exists or None
+        ;raises RaptlyError: If specified repo does not exist
         """
+        repo = self.find_local_repo(public_repo_name=public_repo_name)
+        if repo is None:
+            raise RaptlyError("Specified repo '%s' doesn't exist" % public_repo_name)
 
         publications = self.get_publications()
         matching_publications = [x for x in publications if x['Prefix'] == public_repo_name
@@ -357,6 +376,7 @@ class AptlyApi:
 
     def list_distributions(self, public_repo_name):
         """Return the list of published distributions on the Aptly server."""
+        local_repo = self.get_local_repo(public_repo_name)
         publications = self.get_publications()
         publications_for_repo = [x for x in publications if x['Prefix'] == public_repo_name]
         return sorted(publications_for_repo)
@@ -440,45 +460,49 @@ class AptlyApi:
 
         return paths
 
-    def check(self, public_repo_name, package_files, gpg_public_key_id, upload_dir, is_pruned=True):
+    def check(self, public_repo_name, package_files, gpg_public_key_id, upload_dir, no_prune=False):
         """ Check package files with reference to the stable distribution
         :param public_repo_name: The name of the repository to deploy to
         :param package_files: List of Debian package local file names
         :param gpg_public_key_id: The fingerprint of the GPG key used by the server to sign packages
         :param upload_dir: The sub-directory on the server to upload to
-        :param is_pruned: If True, the resulting check repo will contain only latest versions of all packages
+        :param no_prune: If True, the resulting check repo won't prune out old package versions
         """
-
-        # Create the new private check repo, if it doesn't already exist
-        check_repo_public_name = '%s/%s' % (public_repo_name, self.local_user)
-        local_repo = self.get_local_repo(check_repo_public_name)
-        if local_repo is None:
-            self.create(check_repo_public_name, 'check')
-
-        # Upload the package files to the private check repo
-        self.upload_packages(package_files, check_repo_public_name, upload_dir)
-
-        # Create a new, temporary snapshot of the check repo
-        temp_new_pkgs_snapshot_name = '%s-snap-temp-new-pkgs' % local(check_repo_public_name)
-        self.drop_snapshot(temp_new_pkgs_snapshot_name)
-        self.create_local_repo_snapshot(temp_new_pkgs_snapshot_name, check_repo_public_name)
-        check_package_refs = self.get_packages_from_snapshot(temp_new_pkgs_snapshot_name)
-
         # Get the snapshot source of the stable distribution
-        # TODO - fail early if there is no stable distribution
         stable_distribution_name = 'stable'
         stable_snapshot_name = self.get_snapshot_for_publication(distribution=stable_distribution_name,
                                                                  public_repo_name=public_repo_name)
         stable_package_refs = self.get_packages_from_snapshot(stable_snapshot_name)
 
+        # Create the new private check repo, if it doesn't already exist
+        check_repo_public_name = '%s/%s' % (public_repo_name, self.local_user)
+        local_repo = self.find_local_repo(check_repo_public_name)
+        if local_repo is None:
+            self.create(check_repo_public_name, 'check')
+
+        source_snapshots = [stable_snapshot_name]
+        check_package_refs = []
+        # If the package file list contains anything
+        if package_files:
+            # Upload the package files to the private check repo
+            self.upload_packages(package_files, check_repo_public_name, upload_dir)
+
+            # Create a new, temporary snapshot of the check repo
+            temp_new_pkgs_snapshot_name = '%s-snap-temp-new-pkgs' % local(check_repo_public_name)
+            self.drop_snapshot(temp_new_pkgs_snapshot_name)
+            self.create_local_repo_snapshot(temp_new_pkgs_snapshot_name, check_repo_public_name)
+            check_package_refs += self.get_packages_from_snapshot(temp_new_pkgs_snapshot_name)
+            source_snapshots.append(temp_new_pkgs_snapshot_name)
+
         # Create union snapshot of stable + check
         union = stable_package_refs + check_package_refs
-        if is_pruned:
+        # Prune unless told not to
+        if not no_prune:
             union = prune(union)
 
+        # Create a new snapshot of the union package list
         target_check_snapshot_name = '%s.%s' % (local(check_repo_public_name), get_timestamp())
-        self.create_snapshot_from_package_refs(union, [stable_snapshot_name, temp_new_pkgs_snapshot_name],
-                                               target_check_snapshot_name)
+        self.create_snapshot_from_package_refs(union, source_snapshots, target_check_snapshot_name)
 
         # Publish the union snapshot as the check distribution
         self.publish('check', check_repo_public_name, target_check_snapshot_name)
@@ -537,7 +561,7 @@ class AptlyApi:
         :param local_repo_snapshot_name: Name of the local repo snapshot to create
         """
         # Drop any pre-existing publication of the unstable distribution
-        if self.get_publication(distribution=dist_name, public_repo_name=public_repo_name):
+        if self.find_publication(distribution=dist_name, public_repo_name=public_repo_name):
             self.drop_published_distribution(self.aptly_api_base_url,
                                              local_repo_name=local(public_repo_name),
                                              distribution=dist_name)
@@ -563,7 +587,7 @@ class AptlyApi:
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                 % ('Failed to create snapshot %s distribution of repo: %s' % (
-                                  local_repo_snapshot_name, public_repo_name), r.status_code))
+                local_repo_snapshot_name, public_repo_name), r.status_code))
 
     def test(self, public_repo_name, package_query, release_id, unstable_distribution_name, testing_distribution_name,
              stable_distribution_name, dry_run):
@@ -579,9 +603,9 @@ class AptlyApi:
 
         # Get list of packages from stable distribution if it exists
         stable_packages = []
-        stable_publication = self.get_publication(stable_distribution_name, public_repo_name)
+        stable_publication = self.find_publication(stable_distribution_name, public_repo_name)
         if stable_publication is not None:
-            stable_packages = self.get_packages(stable_publication)
+            stable_packages = self.find_packages(stable_publication)
 
         # Check for pre-existing release candidate with matching release_id sort by latest in case of > 1
         matching_releases = sorted(self.find_release_candidate_snapshots(local(public_repo_name), release_id),
@@ -634,7 +658,7 @@ class AptlyApi:
             # Publish / Re-publish the testing distribution
 
             # Check if testing exists
-            testing_publication = self.get_publication(testing_distribution_name, public_repo_name)
+            testing_publication = self.find_publication(testing_distribution_name, public_repo_name)
             if testing_publication is None:
                 # Publish the release candidate snapshot
                 payload = {'SourceKind': 'snapshot',
@@ -700,8 +724,8 @@ class AptlyApi:
             print('Promoting release %s from %s to %s' % (release_id, source_distribution_name, dest_distribution_name))
 
         # Get the currently published source
-        staging_publication = self.get_publication(distribution=source_distribution_name,
-                                                   public_repo_name=public_repo_name)
+        staging_publication = self.find_publication(distribution=source_distribution_name,
+                                                    public_repo_name=public_repo_name)
         # Check the source distribution exists
         if staging_publication is None:
             raise RaptlyError('Cannot promote to %s.  Source distribution %s does not exist.' % (
@@ -728,7 +752,7 @@ class AptlyApi:
         :param source_snapshot: The snapshot to publish.
         """
         # Check if dest distribution already exists
-        dest_publication = self.get_publication(dest_distribution_name, public_repo_name)
+        dest_publication = self.find_publication(dest_distribution_name, public_repo_name)
         if dest_publication is None:
             # Publish the source snapshot
             payload = {'SourceKind': 'snapshot',
@@ -786,7 +810,7 @@ class AptlyApi:
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                 % ('Failed to publish distribution %s for repo %s' % (
-                                  unstable_distribution_name, public_repo_name), r.status_code))
+                unstable_distribution_name, public_repo_name), r.status_code))
 
     def delete_packages(self, public_repo_name, package_refs):
         """Delete packages from an Aptly local repo

@@ -27,7 +27,7 @@ def show_distribution(api, is_pruned, is_json, public_repo_name, distribution):
     :param distribution: The repo distribution - e.g. unstable, stable etc
     """
     # Get the publication of the specified repo + distribution
-    matching_publication = api.get_publication(public_repo_name=public_repo_name, distribution=distribution)
+    matching_publication = api.find_publication(public_repo_name=public_repo_name, distribution=distribution)
     if matching_publication is None:
         raise RaptlyError('Distribution not found: %s %s' % (public_repo_name, distribution))
 
@@ -45,7 +45,7 @@ def show_distribution(api, is_pruned, is_json, public_repo_name, distribution):
     #    package_name   = [1]
     #    debian_version = [2]
     # Correct Debian version sorting provided by debian_version.compare_versions
-    unsorted = api.get_packages(matching_publication)
+    unsorted = api.find_packages(matching_publication)
 
     # If caller wants the list pruned:
     if is_pruned:

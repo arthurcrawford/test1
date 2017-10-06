@@ -2,7 +2,7 @@ import getpass
 import os
 import uuid
 
-from raptly.aptly_api import AptlyApi
+from raptly.aptly_api import AptlyApi, RaptlyError
 
 
 def test_create():
@@ -28,6 +28,24 @@ def test_upload():
     assert len(paths) == len(package_filenames)
     for i in range(0, len(paths)):
         assert '%s/%s' % (upload_dir, os.path.basename(package_filenames[i])) in paths
+
+
+def test_check_no_stable():
+    """Check error handling when there's no stable distribution to check against"""
+    api = AptlyApi('http://localhost:9876/api')
+    # Create a unique-ish repo name
+    public_repo_name = str(uuid.uuid1())[:13].replace('-', '/')
+    # Create the repo
+    distribution = 'unstable'
+    api.create(public_repo_name, distribution)
+
+    try:
+        api.check(public_repo_name=public_repo_name, package_files=[], gpg_public_key_id='',
+                  upload_dir=api.local_user)
+    except RaptlyError as re:
+        print(re.value)
+    else:
+        assert False
 
 
 def test_check():
@@ -71,8 +89,6 @@ def test_check():
 
     api.check(public_repo_name=public_repo_name, package_files=check_package_file_names, gpg_public_key_id='',
               upload_dir=api.local_user)
-
-    print('hello')
 
 
 def test_deploy():

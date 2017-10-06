@@ -54,6 +54,7 @@ def add_check_cmd(subparsers):
     cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
     cmd_parser.add_argument('package_files', nargs='*',
                             help='Package files to check - e.g. ./pizza_1.2.deb.  If omitted, just clone stable.')
+    cmd_parser.add_argument('-n', '--no-prune', dest='no_prune', action='store_true', help="Don't prune old versions")
     cmd_parser.add_argument('-g', '--gpg-key', dest='gpg_key',
                             help='Public GPG key to use for signing on the server')
     cmd_parser.set_defaults(func=run_remote_cmd)
@@ -187,18 +188,15 @@ def dist_list_cmd(url, args, key, cert):
 
 
 def check_cmd(args, url, key, cert):
-    """Check package in a "check" distribution."""
+    """Check package in a 'check' distribution."""
 
     api = get_api(args=args, url=url, key=key, cert=cert)
 
-    if args.package_files:
-        # Check the packages in private repo and re-publish
-        api.check(public_repo_name=args.repo_name, package_files=args.package_files, gpg_public_key_id='',
-                  upload_dir=api.local_user)
-    # else:
-    #     # Just create private clone of stable
+    # Check the packages in private repo and re-publish
+    api.check(public_repo_name=args.repo_name, package_files=args.package_files, gpg_public_key_id='',
+              upload_dir=api.local_user, no_prune=args.no_prune)
 
-    # view.show_distribution(api, False, False, '%s/%s' % (args.repo_name, api.local_user), 'check')
+    view.show_distribution(api, False, False, '%s/%s' % (args.repo_name, api.local_user), 'check')
 
 
 def deploy_cmd(args, url, key, cert):
