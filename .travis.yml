@@ -39,7 +39,7 @@ deploy:
     api_key:
       secure: QEm1RJNgGbRMbKyYG+WxkZjbEhQt8+LKM/fcZCiO0jvCfyPFmMMTH2ZuzG2L6GeVJdgyUT6Z0ewrSlJcuDefXvFT374YlOMFqVLb9yK4iHa1Jd3I9pJ0fqFEf0uBPOnYZs5+gn55Yxc3szsEIt282CAmo3E8lIojX0XoLHNSWtvTfCCIc1sneiUqUv914BJs3Mwg/t859oDarJU+mWAadgJUXf4bhMsyO7/XQhBK4YQsmzv7xDutUtEN9711q1rVVdnqPE1GGkb7nzkNSrs92NZZLYerUHxPELL2tfWeqtIRjo2/+Rvz6wEkP0FC4AmWr+JtR3uxjJq9vZpZNRpZVRTsJ3MIvbIf9JoEEYca6s4XwXgq0q36dBy9++Kj7NKm4jLc2NJLZqM/QZf+HNec0VmtE8InFwhWv9pXSN9c0Wr9G9Nl9xghS/0XA9jJHHx8T1U0qxxb9bjzk7mRMTXGTSxKVKuicyKJLrF0qU7ubkhHWpPH3qLGO4/NUs636EYY0YR6znSTTWeIeZkQZMdDhSCQGrbSQk5g2qNKOXrpR6akPj9rJFTI0KOka4C7OgWjuGfACBkdEsp8QiSqLOsFcjJfabDL+3iRfhmBuK3Y6pylbFXfmuSx1w/vQWmEkb74HQzTBDxC9e0iusViVyoM/S64L+TQ2fuohKS+jc5Cxww=
     file_glob: true
-    file: ${TRAVIS_BUILD_DIR}/build/raptly_?.?.?_all.deb
+    file: ${TRAVIS_BUILD_DIR}/build/raptly_*.*.*_all.deb
     skip_cleanup: true
     on:
       repo: arthurcrawford/test1
