@@ -1,5 +1,5 @@
 # test1 ![build](https://travis-ci.org/arthurcrawford/test1.svg?branch=master)
-Test1 repository for raptly
+Test1 repository for raptly tool
 
 ## Build
 To build locally (Mac OSX or Debian/Linux)
