@@ -24,7 +24,7 @@ script:
   - ./build.sh
   - PYTHONPATH=src/main/python pytest src/test/python
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./itest.sh; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo installer -allowUntrusted -verboseR -pkg /Users/travis/build/arthurcrawford/test1/build/com.a4pizza.raptly.pkg -target / ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo installer -allowUntrusted -verboseR -pkg "${TRAVIS_BUILD_DIR}"/build/com.a4pizza.raptly.pkg -target / ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then raptly; fi
 deploy:
   - provider: releases
@@ -33,7 +33,7 @@ deploy:
     file: ${TRAVIS_BUILD_DIR}/build/com.a4pizza.raptly.pkg
     skip_cleanup: true
     on:
-      repo: arthurcrawford/test1
+      repo: a4pizza/test1
       tags: true
       condition: "$TRAVIS_OS_NAME == osx"
   - provider: releases
@@ -43,7 +43,7 @@ deploy:
     file: ${TRAVIS_BUILD_DIR}/build/raptly_*.*.*_all.deb
     skip_cleanup: true
     on:
-      repo: arthurcrawford/test1
+      repo: a4pizza/test1
       tags: true
       condition: "$TRAVIS_OS_NAME == linux"
 
