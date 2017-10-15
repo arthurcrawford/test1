@@ -1,6 +1,7 @@
 import getpass
 import os
 import uuid
+from pytest import raises
 
 from raptly.aptly_api import AptlyApi, RaptlyError
 
@@ -8,12 +9,12 @@ from raptly.aptly_api import AptlyApi, RaptlyError
 def test_create():
     api = AptlyApi('http://localhost:9876/api')
     # Record how many repos there are before
-    before = api.list_published_repos()
+    before = api.get_published_repos()
     # Create a unique-ish 8 character repo name
     repo_name = str(uuid.uuid1())[:8]
     # Create the repo
     api.create(repo_name, 'unstable')
-    after = api.list_published_repos()
+    after = api.get_published_repos()
     assert len(after) - len(before) == 1
 
 
@@ -23,15 +24,17 @@ def test_upload():
     package_filenames = [get_path('margherita_1.0.0_all.deb'),
                          get_path('margherita_1.1.0_all.deb'),
                          get_path('fiorentina_1.0.2_all.deb')]
-    paths = api.upload(package_filenames=package_filenames,
-                       upload_dir=upload_dir)
+    paths = api.upload(package_filenames=package_filenames, upload_dir=upload_dir)
     assert len(paths) == len(package_filenames)
     for i in range(0, len(paths)):
         assert '%s/%s' % (upload_dir, os.path.basename(package_filenames[i])) in paths
 
+    with raises(IOError):
+        api.upload(package_filenames=['non-existent'], upload_dir=upload_dir)
 
-def test_check_no_stable():
-    """Check error handling when there's no stable distribution to check against"""
+
+def test_check_fails():
+    """Error handling and exceptions in the check API call"""
     api = AptlyApi('http://localhost:9876/api')
     # Create a unique-ish repo name
     public_repo_name = str(uuid.uuid1())[:13].replace('-', '/')
@@ -39,13 +42,13 @@ def test_check_no_stable():
     distribution = 'unstable'
     api.create(public_repo_name, distribution)
 
-    try:
-        api.check(public_repo_name=public_repo_name, package_files=[], gpg_public_key_id='',
-                  upload_dir=api.local_user)
-    except RaptlyError as re:
-        print(re.value)
-    else:
-        assert False
+    # Repo exists but no stable distribution
+    with raises(RaptlyError):
+        api.check(public_repo_name=public_repo_name, package_files=[], upload_dir=api.local_user)
+
+    # No such repo exists
+    with raises(RaptlyError):
+        api.check('non-existent', package_files=[], upload_dir=api.local_user)
 
 
 def test_check():
@@ -87,7 +90,7 @@ def test_check():
     for check_package in check_packages:
         check_package_file_names.append(get_path('%s.deb' % check_package))
 
-    api.check(public_repo_name=public_repo_name, package_files=check_package_file_names, gpg_public_key_id='',
+    api.check(public_repo_name=public_repo_name, package_files=check_package_file_names,
               upload_dir=api.local_user)
 
 

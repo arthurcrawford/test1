@@ -53,6 +53,8 @@ class AptlyApi:
     def __init__(self, repo_url, verbose=False, skip_ssl=False, user=':', key=None, cert=None):
         self.repo_url = repo_url
         self.aptly_api_base_url = repo_url
+        self.version_url = '%s/version' % self.aptly_api_base_url
+        self.publish_url = '%s/publish' % self.aptly_api_base_url
         self.verbose = verbose
         self.verify = not skip_ssl
         self.headers = {}
@@ -389,37 +391,33 @@ class AptlyApi:
         publications_for_repo = [x for x in publications if x['Prefix'] == check_public_repo_name]
         return sorted(publications_for_repo)
 
-    def list_published_repos(self):
+    def get_published_repos(self):
         """Return the list of published repositories on the Aptly server."""
 
-        repos_url = '%s/publish' % self.aptly_api_base_url
-
         if self.verbose:
-            print('Listing repos at: %s' % repos_url)
+            print('Listing repos at: %s' % self.publish_url)
 
-        r = self.do_get(repos_url)
+        r = self.do_get(self.publish_url)
 
         # Create a distinct list of publications
         if r.status_code == requests.codes.ok:
             publications = r.json()
             return sorted(set([x['Prefix'] for x in publications]))
         else:
-            raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s' % (repos_url, r.status_code))
+            raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s' % (self.publish_url, r.status_code))
 
     def version(self):
         """Report the Aptly API version. """
 
-        version_url = '%s/version' % self.aptly_api_base_url
-
         if self.verbose:
-            print('Getting API version from: %s' % version_url)
+            print('Getting API version from: %s' % self.version_url)
 
-        r = self.do_get(version_url)
+        r = self.do_get(self.version_url)
 
         if r.status_code == requests.codes.ok:
             return r.json()
         else:
-            raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s' % (version_url, r.status_code))
+            raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s' % (self.version_url, r.status_code))
 
     def undeploy(self, public_repo_name, package_query, unstable_dist_name, dry_run):
         """Un-deploy a package from the unstable distribution.
@@ -444,7 +442,7 @@ class AptlyApi:
         :param upload_dir: The sub-directory on the server to upload to
         """
 
-        upload_file_url = '%s/%s/%s' % (self.aptly_api_base_url, 'files', upload_dir)
+        upload_file_url = '%s/files/%s' % (self.aptly_api_base_url, upload_dir)
 
         if self.verbose:
             print('Uploading file to Aptly pool at: %s' % upload_file_url)
@@ -468,11 +466,10 @@ class AptlyApi:
 
         return paths
 
-    def check(self, public_repo_name, package_files, gpg_public_key_id, upload_dir, no_prune=False):
+    def check(self, public_repo_name, package_files, upload_dir, no_prune=False):
         """ Check package files with reference to the stable distribution
         :param public_repo_name: The name of the repository to deploy to
         :param package_files: List of Debian package local file names
-        :param gpg_public_key_id: The fingerprint of the GPG key used by the server to sign packages
         :param upload_dir: The sub-directory on the server to upload to
         :param no_prune: If True, the resulting check repo won't prune out old package versions
         """
