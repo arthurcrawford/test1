@@ -1,13 +1,17 @@
 import getpass
 import os
 import uuid
-from pytest import raises
-
+import pytest
 from raptly.aptly_api import AptlyApi, RaptlyError
 
 
-def test_create():
-    api = AptlyApi('http://localhost:9876/api')
+@pytest.fixture
+def api():
+    return AptlyApi('http://localhost:9876/api')
+
+
+def test_create(api):
+    # api = AptlyApi('http://localhost:9876/api')
     # Record how many repos there are before
     before = api.get_published_repos()
     # Create a unique-ish 8 character repo name
@@ -18,8 +22,8 @@ def test_create():
     assert len(after) - len(before) == 1
 
 
-def test_upload():
-    api = AptlyApi('http://localhost:9876/api', verbose=True)
+def test_upload(api):
+    # api = AptlyApi('http://localhost:9876/api', verbose=True)
     upload_dir = "%s" % getpass.getuser()
     package_filenames = [get_path('margherita_1.0.0_all.deb'),
                          get_path('margherita_1.1.0_all.deb'),
@@ -29,13 +33,13 @@ def test_upload():
     for i in range(0, len(paths)):
         assert '%s/%s' % (upload_dir, os.path.basename(package_filenames[i])) in paths
 
-    with raises(IOError):
+    with pytest.raises(IOError):
         api.upload(package_filenames=['non-existent'], upload_dir=upload_dir)
 
 
-def test_check_fails():
+def test_check_fails(api):
     """Error handling and exceptions in the check API call"""
-    api = AptlyApi('http://localhost:9876/api')
+    # api = AptlyApi('http://localhost:9876/api')
     # Create a unique-ish repo name
     public_repo_name = str(uuid.uuid1())[:13].replace('-', '/')
     # Create the repo
@@ -43,16 +47,16 @@ def test_check_fails():
     api.create(public_repo_name, distribution)
 
     # Repo exists but no stable distribution
-    with raises(RaptlyError):
+    with pytest.raises(RaptlyError):
         api.check(public_repo_name=public_repo_name, package_files=[], upload_dir=api.local_user)
 
     # No such repo exists
-    with raises(RaptlyError):
+    with pytest.raises(RaptlyError):
         api.check('non-existent', package_files=[], upload_dir=api.local_user)
 
 
-def test_check():
-    api = AptlyApi('http://localhost:9876/api')
+def test_check(api):
+    # api = AptlyApi('http://localhost:9876/api')
     # Create a unique-ish repo name
     public_repo_name = str(uuid.uuid1())[:13].replace('-', '/')
     # Create the repo
@@ -94,8 +98,8 @@ def test_check():
               upload_dir=api.local_user)
 
 
-def test_deploy():
-    api = AptlyApi('http://localhost:9876/api')
+def test_deploy(api):
+    # api = AptlyApi('http://localhost:9876/api')
     # Create a unique-ish 8 character repo name
     repo_name = str(uuid.uuid1())[:8]
     # Create the repo
@@ -120,8 +124,8 @@ def test_deploy():
     assert len(packages) - len(final) == 2
 
 
-def test_test():
-    api = AptlyApi('http://localhost:9876/api')
+def test_test(api):
+    # api = AptlyApi('http://localhost:9876/api')
     # Create a unique-ish 8 character repo name
     repo_name = str(uuid.uuid1())[:8]
     # Create the repo
