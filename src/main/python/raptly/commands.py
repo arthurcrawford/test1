@@ -177,7 +177,7 @@ def create_cmd_parsers():
 def repo_list_cmd(url, args, key, cert):
     """Print repositories to stdout."""
 
-    repos = get_api(args=args, url=url, key=key, cert=cert).list_published_repos()
+    repos = get_api(args=args, url=url, key=key, cert=cert).get_published_repos()
     view.show_repos(repos, args.json)
 
 
@@ -198,7 +198,7 @@ def check_cmd(args, url, key, cert):
     api = get_api(args=args, url=url, key=key, cert=cert)
 
     # Check the packages in private repo and re-publish
-    api.check(public_repo_name=args.repo_name, package_files=args.package_files, gpg_public_key_id='',
+    api.check(public_repo_name=args.repo_name, package_files=args.package_files,
               upload_dir=api.local_user, no_prune=args.no_prune)
 
     view.show_distribution(api, False, False, '%s/%s' % (args.repo_name, api.local_user), 'check')
