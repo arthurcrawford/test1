@@ -31,9 +31,6 @@ class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
             parts = "\n".join(parts.split("\n")[1:])
         return parts
 
-    def _format_usage(self, usage, actions, groups, prefix):
-        return super(CustomHelpFormatter, self)._format_usage(usage, actions, groups, 'Usage: ')
-
 
 def add_deploy_cmd(subparsers):
     """ Add the parser for the "deploy" command."""
