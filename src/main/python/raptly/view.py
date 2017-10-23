@@ -15,7 +15,7 @@ def print_package_refs(package_refs):
 
     for package_ref in sorted_by_name:
         package_ref_fields = package_ref[1:].split()
-        print '  %s %s %s' % (package_ref_fields[1], package_ref_fields[2], package_ref_fields[0])
+        print '  %s_%s_%s' % (package_ref_fields[1], package_ref_fields[2], package_ref_fields[0])
 
 
 def show_distribution(api, is_pruned, is_json, public_repo_name, distribution):
