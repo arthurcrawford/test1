@@ -13,12 +13,15 @@ RUN apt-key add aptly_pubkey.txt && \
       supervisor \
       vim \
       xz-utils \
+      tree \
+      curl \
    && rm -rf /var/lib/apt/lists/*
 
 VOLUME ["/root/src"]
 ENV PYTHONPATH="/root/src"
 
 COPY program_aptly_api.conf /etc/supervisor/conf.d
+COPY program_aptly_web.conf /etc/supervisor/conf.d
 COPY docker-entrypoint.sh /
 COPY supervisord.conf /etc/supervisor
 COPY gpg_private.asc /
