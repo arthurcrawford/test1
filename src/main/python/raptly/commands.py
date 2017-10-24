@@ -75,9 +75,9 @@ def add_test_cmd(subparsers):
     # package_query
     cmd_parser.add_argument('-p', '--packages',
                             help='Add packages from unstable - a non-urlencoded Aptly package query')
+    cmd_parser.add_argument('-n', '--no-prune', dest='no_prune', action='store_true', help="Don't prune old versions")
     cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
-    cmd_parser.add_argument('release_id',
-                            help='The unique identifier of this candidate release - e.g. Jira ticket')
+    cmd_parser.add_argument('release_id', help='The unique identifier of this candidate release - e.g. Jira ticket')
     cmd_parser.set_defaults(func=run_remote_cmd)
 
 
@@ -248,6 +248,7 @@ def test_cmd(args, url, key, cert):
     public_repo_name = args.repo_name
     release_id = args.release_id
     is_dry_run = args.dry_run
+    no_prune = args.no_prune
 
     union, new_packages, snapshot_release_candidate = api.test(public_repo_name=public_repo_name,
                                                                package_query=args.packages,
@@ -255,7 +256,8 @@ def test_cmd(args, url, key, cert):
                                                                unstable_distribution_name=api.unstable_name,
                                                                testing_distribution_name=api.testing_name,
                                                                stable_distribution_name=api.stable_name,
-                                                               dry_run=is_dry_run)
+                                                               dry_run=is_dry_run,
+                                                               no_prune=no_prune)
 
     view.show_test_cmd_output(api, is_dry_run, new_packages, public_repo_name, release_id,
                               snapshot_release_candidate,

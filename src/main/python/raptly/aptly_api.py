@@ -301,9 +301,13 @@ class AptlyApi:
         return r.json()
 
     def find_release_candidate_snapshots(self, local_repo_name, release_id):
-        """Find snapshot release candidates matching the form local_repo_name.release_id.*"""
+        """Find snapshot release candidates matching either of the following two forms:
+             <local_repo_name>.<release_id>.<timestamp>  (older format)
+             or
+             <local_repo_name>.test.<release_id>.<timestamp>.<local_user>  (newer format)
+        """
         snapshots = self.find_snapshots()
-        pattern = re.compile('%s\.%s\..*' % (local_repo_name, release_id))
+        pattern = re.compile('^%s.*\.%s\.[0-9]*.*$' % (local_repo_name, release_id))
         matching_snapshots = [x for x in snapshots if pattern.match(x['Name'])]
         return matching_snapshots
 
@@ -404,7 +408,8 @@ class AptlyApi:
             publications = r.json()
             return sorted(set([x['Prefix'] for x in publications]))
         else:
-            raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s' % (self.publish_url, r.status_code))
+            raise AptlyApiError(r.status_code,
+                                'Aptly API Error - %s - HTTP Error: %s' % (self.publish_url, r.status_code))
 
     def version(self):
         """Report the Aptly API version. """
@@ -417,7 +422,8 @@ class AptlyApi:
         if r.status_code == requests.codes.ok:
             return r.json()
         else:
-            raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s' % (self.version_url, r.status_code))
+            raise AptlyApiError(r.status_code,
+                                'Aptly API Error - %s - HTTP Error: %s' % (self.version_url, r.status_code))
 
     def undeploy(self, public_repo_name, package_query, unstable_dist_name, dry_run):
         """Un-deploy a package from the unstable distribution.
@@ -595,7 +601,7 @@ class AptlyApi:
                 local_repo_snapshot_name, public_repo_name), r.status_code))
 
     def test(self, public_repo_name, package_query, release_id, unstable_distribution_name, testing_distribution_name,
-             stable_distribution_name, dry_run):
+             stable_distribution_name, dry_run, no_prune=False):
         """Create a test candidate, promoting the specified package to the testing distribution.
         :param public_repo_name: The name of the repository to deploy to (e.g. zonza/zonza4/trusty)
         :param package_query: New packages to add.  A non-urlencoded Aptly package query.
@@ -604,6 +610,7 @@ class AptlyApi:
         :param testing_distribution_name: The name used for the testing distribution (e.g. 'testing')
         :param stable_distribution_name: The name used for the stable distribution (e.g. 'stable')
         :param dry_run: If True, just show what would happen.
+        :param no_prune: If True, the resulting check repo won't prune out old package versions
         """
 
         # Get list of packages from stable distribution if it exists
@@ -646,6 +653,9 @@ class AptlyApi:
 
         # Create the union of new + stable
         union = stable_packages + new_packages
+        # Prune unless told not to
+        if not no_prune:
+            union = prune(union)
 
         snapshot_release_candidate = None
         # Nothing to do if there are no packages or dry-run requested
@@ -657,7 +667,8 @@ class AptlyApi:
             self.create_snapshot_from_package_refs(new_packages, [unstable_snapshot_name], temp_new_pkgs_snapshot_name)
 
             # Drop and re-create a testing snapshot containing the union
-            snapshot_release_candidate = '%s.%s.%s' % (local(public_repo_name), release_id, get_timestamp())
+            snapshot_release_candidate = '%s.test.%s.%s.%s' % (local(public_repo_name), release_id, get_timestamp(),
+                                                               self.local_user)
             self.create_snapshot_from_package_refs(union, [temp_new_pkgs_snapshot_name], snapshot_release_candidate)
 
             # Publish / Re-publish the testing distribution
