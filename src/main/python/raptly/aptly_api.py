@@ -480,7 +480,7 @@ class AptlyApi:
         stable_package_refs = self.get_packages_from_snapshot(stable_snapshot_name)
 
         # Create the new private check repo, if it doesn't already exist
-        check_repo_public_name = '%s.@%s' % (public_repo_name, self.local_user)
+        check_repo_public_name = '%s.@%s@' % (public_repo_name, self.local_user)
         local_repo = self.find_local_repo(check_repo_public_name)
         if local_repo is None:
             self.create(check_repo_public_name, 'check')

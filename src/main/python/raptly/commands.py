@@ -171,11 +171,11 @@ def create_cmd_parsers():
     return cmd_parser
 
 
-def show_repos_cmd(url, args, key, cert):
+def show_repos_cmd(url, args, key, cert, with_checks):
     """Print repositories to stdout."""
 
     repos = get_api(args=args, url=url, key=key, cert=cert).get_published_repos()
-    view.show_repos(repos, args.json)
+    view.show_repos(repos, args.json, with_checks)
 
 
 def show_distributions_cmd(url, args, key, cert, with_checks):
@@ -363,7 +363,7 @@ def show_cmd(url, args, key=None, cert=None):
 
     # If no repo name specified list all published repos
     if args.repo_name is None:
-        show_repos_cmd(url=url, args=args, key=key, cert=cert)
+        show_repos_cmd(url=url, args=args, key=key, cert=cert, with_checks=args.with_checks)
         return
 
     # If no distribution name specified list all distributions for the specified repo

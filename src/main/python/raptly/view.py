@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 
 from aptly_api import RaptlyError
@@ -60,7 +61,7 @@ def show_distribution(api, is_pruned, is_json, public_repo_name, distribution):
         print_package_refs(final_list)
 
 
-def show_repos(repos, is_json=False):
+def show_repos(repos, is_json=False, with_checks=False):
     """Show a list of repositories
     :param repos: The list of repository names
     :param is_json: Show as json string
@@ -71,7 +72,15 @@ def show_repos(repos, is_json=False):
         # Print out one repo name per line
         print("Repositories:")
         for repo in repos:
-            print "  %s" % repo
+            match = re.match("^.*\.@.*@$", repo)
+
+            # Show every repo
+            if with_checks:
+                print "  %s" % repo
+            else:
+                # Don't show check repos
+                if not match:
+                    print "  %s" % repo
 
 
 def show_distributions(api, public_repo_name, dists, checks, is_json):
@@ -86,8 +95,9 @@ def show_distributions(api, public_repo_name, dists, checks, is_json):
         if checks:
             print json.dumps(checks)
     else:
+        print("Repository: %s" % public_repo_name)
         # Print out one distribution name per line
-        print("Distributions: %s" % public_repo_name)
+        print("Distributions:")
         for dist in dists:
             sys.stdout.write("  %s -> " % dist['Distribution'])
             for source in dist['Sources']:
