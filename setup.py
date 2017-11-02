@@ -10,5 +10,6 @@ setup(
     author_email='pizzaiolo@a4pizza.com',
     url='https://github.com/a4pizza/test1',
     license='license',
-    packages=find_packages('src/main/python')
+    packages=find_packages('src/main/python'),
+    package_dir = { '': 'src/main/python' }
 )
