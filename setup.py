@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='sample',
-    version='0.1.0',
+    version='2.1.19',
     description='My description',
     long_description='long desc',
     author='Art Crawford',
