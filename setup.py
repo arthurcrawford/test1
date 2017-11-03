@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='raptly',
-    version='2.1.22',
+    version='2.1.23',
     description='My description',
     long_description='long desc',
     author='Art Crawford',
