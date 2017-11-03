@@ -25,11 +25,12 @@ mkdir -p "${COMPONENT_DIR}"
 # Create Python virtualenv, activate and install dependencies in it
 virtualenv --always-copy --no-setuptools "${VENV_DIR}"
 source "${VENV_DIR}"/bin/activate
+python get-pip.py
 pip install --upgrade pip
 pip install -r requirements.txt
 
 # Copy our Python code to the virtual env's site-packages
-# Determine site packages dir for the virtualenv using distutils
+# Determine site packages directory for the virtualenv using distutils
 SITE_PACKAGES=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
 MODULE_DIR="${SITE_PACKAGES}/${COMPONENT}/"
 mkdir -p "${MODULE_DIR}"

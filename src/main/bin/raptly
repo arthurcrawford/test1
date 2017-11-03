@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/opt/raptly/venv/bin/python
 
 import sys
 
