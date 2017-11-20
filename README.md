@@ -1,6 +1,27 @@
 # test1 ![build](https://travis-ci.org/arthurcrawford/test1.svg?branch=master)
 Test1.  Test repository for raptly tool
 
+## Quick Start
+
+### Install on Mac
+
+#### Home_brew 
+
+Install:
+
+    $ brew tap a4pizza/oven
+    $ brew install raptly
+
+Upgrade:
+
+    $ brew upgrade raptly
+
+Uninstall:
+
+    $ brew remove raptly
+    
+## Development
+
 ## Build
 To build locally (Mac OSX or Debian/Linux)
 
@@ -33,7 +54,14 @@ To run the integration tests (itests).
 
     $ ./itest.sh
 
-## Install on Mac
+
+    
+#### The Mac component package (.pkg)
+
+The build, when run on an OSX machine, will create a Mac (.pkg) file.  This can be useful in some 
+circumstances if the Homebrew installation method is not possible. 
+
+Install:
 
 with the GUI installer 
 
@@ -43,9 +71,14 @@ or a silent install, ignoring signing warnings
     
     $ sudo installer -allowUntrusted -verboseR -pkg build/com.a4pizza.raptly.pkg -target /
 
-## Uninstall on Mac
+Uninstall:
     
     $ sudo rm -rf /usr/local/opt/raptly/
     $ sudo pkgutil --forget com.a4pizza.raptly
+    
+    
+    
+    
+    
     
     

@@ -10,6 +10,14 @@ def api():
     return AptlyApi('http://localhost:9876/api')
 
 
+def get_uniqueish_repo_name():
+    return str(uuid.uuid1())[:13].replace('-', '/')
+
+
+def get_uniqueish_release_id():
+    return 'TKT-%s' % str(uuid.uuid1())[:4]
+
+
 def test_create(api):
     # api = AptlyApi('http://localhost:9876/api')
     # Record how many repos there are before
@@ -55,10 +63,9 @@ def test_check_fails(api):
         api.check('non-existent', package_files=[], upload_dir=api.local_user)
 
 
-def test_check(api):
-    # api = AptlyApi('http://localhost:9876/api')
+def test_check_without_packages(api):
     # Create a unique-ish repo name
-    public_repo_name = str(uuid.uuid1())[:13].replace('-', '/')
+    public_repo_name = get_uniqueish_repo_name()
     # Create the repo
     distribution = 'unstable'
     api.create(public_repo_name, distribution)
@@ -71,7 +78,44 @@ def test_check(api):
     api.deploy(public_repo_name, package_file_names, '', distribution, api.local_user)
 
     # Move through test, staging & stable
-    release_id = 'TKT-999'
+    release_id = get_uniqueish_release_id()
+    union, new_packages, snapshot_release_candidate = \
+        api.test(public_repo_name=public_repo_name,
+                 package_query='fiorentina_0.9.7_all|margherita_1.0.0_all',
+                 release_id=release_id,
+                 unstable_distribution_name='unstable',
+                 testing_distribution_name='testing',
+                 stable_distribution_name='stable',
+                 dry_run=False)
+
+    api.stage(public_repo_name=public_repo_name, testing_distribution_name=api.testing_name,
+              staging_distribution_name=api.staging_name, release_id=release_id)
+
+    api.release(public_repo_name=public_repo_name, staging_distribution_name=api.staging_name,
+                stable_distribution_name=api.stable_name, release_id=release_id)
+
+    # Create a check distribution, but don't specify any packages to check
+    api.check(public_repo_name=public_repo_name, package_files=[], upload_dir=api.local_user)
+
+    api.check_clean(public_repo_name=public_repo_name)
+
+
+def test_check_with_packages(api):
+    # Create a unique-ish repo name
+    public_repo_name = get_uniqueish_repo_name()
+    # Create the repo
+    distribution = 'unstable'
+    api.create(public_repo_name, distribution)
+    packages = ['fiorentina_0.9.7_all',
+                'margherita_1.0.0_all']
+    package_file_names = []
+    for package in packages:
+        package_file_names.append(get_path('%s.deb' % package))
+
+    api.deploy(public_repo_name, package_file_names, '', distribution, api.local_user)
+
+    # Move through test, staging & stable
+    release_id = get_uniqueish_release_id()
     union, new_packages, snapshot_release_candidate = \
         api.test(public_repo_name=public_repo_name,
                  package_query='fiorentina_0.9.7_all|margherita_1.0.0_all',

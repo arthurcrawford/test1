@@ -42,7 +42,7 @@ def get_timestamp():
 def local(public_repo_name):
     """Return local form of public repo name.
     Aptly REST API interprets '_' as '/' in repo names.
-    :param public_repo_name: The name of the repo (e.g. zonza/zonza4/trusty)
+    :param public_repo_name: The name of the repo (e.g. a4pizza/base)
     """
     return public_repo_name.replace('/', '_')
 
@@ -81,10 +81,22 @@ class AptlyApi:
         # The client local user name
         self.local_user = getpass.getuser()
 
+    def delete_local_repo(self, base_url, local_repo_name):
+        """Delete a local repo.
+        :param base_url: The base API url (e.g. https://repo.hogarthww.com/aptly/api)
+        :param local_repo_name: The local name of the repo (e.g. a4pizza_base)
+        """
+        # payload = {'force': 1}
+        # headers = {'content-type': 'application/json'}
+        r = self.do_delete('%s/repos/%s?force=1' % (base_url, local_repo_name))
+        if r.status_code != requests.codes.ok:
+            raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to delete local repo: %s'
+                                % (r.status_code, local_repo_name))
+
     def drop_published_distribution(self, base_url, local_repo_name, distribution):
         """Drop a published distribution.
         :param base_url: The base API url (e.g. https://repo.hogarthww.com/aptly/api)
-        :param local_repo_name: The local name of the repo (e.g. zonza_zonza4_trusty)
+        :param local_repo_name: The local name of the repo (e.g. a4pizza_base)
         :param distribution: The distribution name (e.g. unstable | testing | stable)
         """
         r = self.do_delete('%s/publish/%s/%s' % (base_url, local_repo_name, distribution))
@@ -98,7 +110,7 @@ class AptlyApi:
         :param snapshot_name: The name of the snapshot to publish
         :param distribution: The distribution name (e.g. unstable | testing | stable)
         :param gpg_public_key_id: The GPG key the server will use to sign packages with
-        :param repo_name: The name of the repo (e.g. zonza/zonza4/trusty)
+        :param repo_name: The name of the repo (e.g. a4pizza/base)
         """
         payload = {'Signing': {'GpgKey': gpg_public_key_id},
                    'SourceKind': 'snapshot',
@@ -113,7 +125,7 @@ class AptlyApi:
 
     def drop_snapshot(self, snapshot_name):
         """Drop a snapshot.
-         The quivalent cURL command: curl -v -X DELETE 'http://repo:8080/api/snapshots/snapshot-name?force=1'
+         The equivalent cURL command: curl -v -X DELETE 'http://repo:8080/api/snapshots/snapshot-name?force=1'
         :param snapshot_name: Name of the snapshot to drop
         """
         delete_snapshot_url = ('%s/snapshots/' + snapshot_name + '?force=1') % self.aptly_api_base_url
@@ -389,8 +401,7 @@ class AptlyApi:
 
     def list_checks(self, public_repo_name):
         """Return the list of check distributions for the specified repo."""
-        check_public_repo_name = "%s/%s" % (public_repo_name, self.local_user)
-        local_repo = self.get_local_repo(check_public_repo_name)
+        check_public_repo_name = self.get_check_repo_public_name(public_repo_name)
         publications = self.get_publications()
         publications_for_repo = [x for x in publications if x['Prefix'] == check_public_repo_name]
         return sorted(publications_for_repo)
@@ -472,6 +483,20 @@ class AptlyApi:
 
         return paths
 
+    def check_clean(self, public_repo_name):
+        """ Clean up a check repo by first un-publishing and then deleting the local repo
+        :param public_repo_name: The name of the local repo for whom the check will be cleaned
+        """
+        check_public_repo_name = self.get_check_repo_public_name(public_repo_name)
+        # Drop any pre-existing publication of the check distribution
+        dist_name = 'check'
+        if self.find_publication(distribution=dist_name, public_repo_name=check_public_repo_name):
+            self.drop_published_distribution(self.aptly_api_base_url,
+                                             local_repo_name=local(check_public_repo_name),
+                                             distribution=dist_name)
+        # Delete the local check repo
+        self.delete_local_repo(self.aptly_api_base_url, local(check_public_repo_name))
+
     def check(self, public_repo_name, package_files, upload_dir, no_prune=False):
         """ Check package files with reference to the stable distribution
         :param public_repo_name: The name of the repository to deploy to
@@ -486,7 +511,7 @@ class AptlyApi:
         stable_package_refs = self.get_packages_from_snapshot(stable_snapshot_name)
 
         # Create the new private check repo, if it doesn't already exist
-        check_repo_public_name = '%s.@%s@' % (public_repo_name, self.local_user)
+        check_repo_public_name = self.get_check_repo_public_name(public_repo_name)
         local_repo = self.find_local_repo(check_repo_public_name)
         if local_repo is None:
             self.create(check_repo_public_name, 'check')
@@ -498,12 +523,12 @@ class AptlyApi:
             # Upload the package files to the private check repo
             self.upload_packages(package_files, check_repo_public_name, upload_dir)
 
-            # Create a new, temporary snapshot of the check repo
-            temp_new_pkgs_snapshot_name = '%s-snap-temp-new-pkgs' % local(check_repo_public_name)
-            self.drop_snapshot(temp_new_pkgs_snapshot_name)
-            self.create_local_repo_snapshot(temp_new_pkgs_snapshot_name, check_repo_public_name)
-            check_package_refs += self.get_packages_from_snapshot(temp_new_pkgs_snapshot_name)
-            source_snapshots.append(temp_new_pkgs_snapshot_name)
+        # Create a new, temporary snapshot of the check repo
+        temp_new_pkgs_snapshot_name = '%s-snap-temp-new-pkgs' % local(check_repo_public_name)
+        self.drop_snapshot(temp_new_pkgs_snapshot_name)
+        self.create_local_repo_snapshot(temp_new_pkgs_snapshot_name, check_repo_public_name)
+        check_package_refs += self.get_packages_from_snapshot(temp_new_pkgs_snapshot_name)
+        source_snapshots.append(temp_new_pkgs_snapshot_name)
 
         # Create union snapshot of stable + check
         union = stable_package_refs + check_package_refs
@@ -517,6 +542,11 @@ class AptlyApi:
 
         # Publish the union snapshot as the check distribution
         self.publish('check', check_repo_public_name, target_check_snapshot_name)
+
+        return check_repo_public_name
+
+    def get_check_repo_public_name(self, public_repo_name):
+        return '%s.@%s@' % (public_repo_name, self.local_user)
 
     def deploy(self, public_repo_name, package_files, gpg_public_key_id, unstable_dist_name, upload_dir):
         """Deploy a Debian package to the specified distribution.
@@ -603,7 +633,7 @@ class AptlyApi:
     def test(self, public_repo_name, package_query, release_id, unstable_distribution_name, testing_distribution_name,
              stable_distribution_name, dry_run, no_prune=False):
         """Create a test candidate, promoting the specified package to the testing distribution.
-        :param public_repo_name: The name of the repository to deploy to (e.g. zonza/zonza4/trusty)
+        :param public_repo_name: The name of the repository to deploy to (e.g. a4pizza/base)
         :param package_query: New packages to add.  A non-urlencoded Aptly package query.
         :param release_id: A unique ID for the test candidate (e.g. JIRA ticket number)
         :param unstable_distribution_name: The name used for the unstable distribution (e.g. 'unstable')
