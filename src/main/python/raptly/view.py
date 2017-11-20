@@ -41,7 +41,7 @@ def show_distribution(api, is_pruned, is_json, public_repo_name, distribution):
     print('Packages: ')
     # Sort list of package refs first on package name, then on Debian version
     # Each record is of the form:
-    #    'Pamd64 zonza-projects 1.24.6+14 3dede259289aa0aa'
+    #    'Pamd64 mozzarella 1.24.6+14 3dede259289aa0aa'
     # where:
     #    package_name   = [1]
     #    debian_version = [2]
@@ -86,6 +86,7 @@ def show_repos(repos, is_json=False, with_checks=False):
 def show_distributions(api, public_repo_name, dists, checks, is_json):
     """Show a list of distributions
     :param api: AptlyApi
+    :param public_repo_name: Public name of the repo - e.g. a4pizza/base
     :param dists: The list of distributions
     :param checks: List of check distributions
     :param is_json: Show as json string
@@ -104,7 +105,7 @@ def show_distributions(api, public_repo_name, dists, checks, is_json):
                 sys.stdout.write("%s " % source['Name'])
             print("")
         if checks:
-            print("Checks: %s" % ("%s/%s" % (public_repo_name, api.local_user)))
+            print("Checks: %s" % api.get_check_repo_public_name(public_repo_name))
             for check in checks:
                 sys.stdout.write("  %s -> " % check['Distribution'])
                 for source in check['Sources']:

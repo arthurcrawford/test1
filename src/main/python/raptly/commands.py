@@ -35,7 +35,7 @@ class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
 def add_deploy_cmd(subparsers):
     """ Add the parser for the "deploy" command."""
     cmd_parser = subparsers.add_parser('deploy', help='Deploy a package and publish "unstable" distribution')
-    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
+    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. a4pizza/base')
     cmd_parser.add_argument('package_files', nargs='*',
                             help='Package files to deploy - e.g. ./pizza_1.2.deb.  If omitted, just re-publish')
     cmd_parser.add_argument('-g', '--gpg-key', dest='gpg_key',
@@ -47,11 +47,12 @@ def add_deploy_cmd(subparsers):
 
 def add_check_cmd(subparsers):
     """ Add the parser for the "check" command."""
-    cmd_parser = subparsers.add_parser('check', help='Check a package and publish a "check" distribution')
-    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
+    cmd_parser = subparsers.add_parser('check', help='Check packages with reference to stable')
+    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. a4pizza/base')
     cmd_parser.add_argument('package_files', nargs='*',
                             help='Package files to check - e.g. ./pizza_1.2.deb.  If omitted, just clone stable.')
     cmd_parser.add_argument('-n', '--no-prune', dest='no_prune', action='store_true', help="Don't prune old versions")
+    cmd_parser.add_argument('-c', '--clean', dest='clean', action='store_true', help="Clean check repo")
     cmd_parser.add_argument('-g', '--gpg-key', dest='gpg_key',
                             help='Public GPG key to use for signing on the server')
     cmd_parser.set_defaults(func=run_remote_cmd)
@@ -62,7 +63,7 @@ def add_undeploy_cmd(subparsers):
     cmd_parser = subparsers.add_parser('undeploy', help='Un-deploy a package from "unstable" distribution')
     cmd_parser.add_argument('-d', '--dry-run', dest='dry_run', action='store_true', help='Just show what would happen')
     cmd_parser.set_defaults(dry_run=False)
-    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
+    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. a4pizza/base')
     cmd_parser.add_argument('packages', help='Packages to remove from unstable - a non-urlencoded Aptly package query')
     cmd_parser.set_defaults(func=run_remote_cmd)
 
@@ -76,7 +77,7 @@ def add_test_cmd(subparsers):
     cmd_parser.add_argument('-p', '--packages',
                             help='Add packages from unstable - a non-urlencoded Aptly package query')
     cmd_parser.add_argument('-n', '--no-prune', dest='no_prune', action='store_true', help="Don't prune old versions")
-    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
+    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. a4pizza/base')
     cmd_parser.add_argument('release_id', help='The unique identifier of this candidate release - e.g. Jira ticket')
     cmd_parser.set_defaults(func=run_remote_cmd)
 
@@ -84,7 +85,7 @@ def add_test_cmd(subparsers):
 def add_stage_cmd(subparsers):
     """ Create the parser for the "stage" command."""
     cmd_parser = subparsers.add_parser('stage', help='Stage packages in "staging"')
-    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
+    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. a4pizza/base')
     cmd_parser.add_argument('release_id', help='The unique identifier of the release - e.g. Jira ticket')
     cmd_parser.set_defaults(func=run_remote_cmd)
 
@@ -92,7 +93,7 @@ def add_stage_cmd(subparsers):
 def add_release_cmd(subparsers):
     """ Create the parser for the "release" command."""
     cmd_parser = subparsers.add_parser('release', help='Release packages to "stable"')
-    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
+    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. a4pizza/base')
     cmd_parser.add_argument('release_id', help='The unique identifier of the release - e.g. Jira ticket')
     cmd_parser.set_defaults(func=run_remote_cmd)
 
@@ -108,11 +109,11 @@ def add_aptly_version_cmd(subparsers):
 def add_show_cmd(subparsers):
     """ Create the parser for the "aptly show" command."""
     cmd_parser = subparsers.add_parser('show', help='Show repository details')
-    cmd_parser.add_argument('repo_name', nargs='?', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
+    cmd_parser.add_argument('repo_name', nargs='?', help='The name of the APT repo - e.g. a4pizza/base')
     cmd_parser.add_argument('distribution', nargs='?', help='The name of the distribution to show')
     cmd_parser.add_argument('-j', '--json', dest='json', action='store_true', help='Print result as json')
     cmd_parser.add_argument('-p', '--prune', dest='prune', action='store_true', help='Show pruned by latest version')
-    cmd_parser.add_argument('-c', '--with-checks', dest='with_checks', action='store_true', help='Show check repo')
+    cmd_parser.add_argument('-w', '--with-checks', dest='with_checks', action='store_true', help='Show check repo')
     cmd_parser.set_defaults(json=False)
     cmd_parser.set_defaults(func=run_remote_cmd)
 
@@ -120,7 +121,7 @@ def add_show_cmd(subparsers):
 def add_create_cmd(subparsers):
     """ Create the parser for the "aptly create" command"""
     cmd_parser = subparsers.add_parser('create', help='Create a repository')
-    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. pizza/pizza4/trusty')
+    cmd_parser.add_argument('repo_name', help='The name of the APT repo - e.g. a4pizza/base')
     cmd_parser.set_defaults(func=run_remote_cmd)
 
 
@@ -190,15 +191,17 @@ def show_distributions_cmd(url, args, key, cert, with_checks):
 
 
 def check_cmd(args, url, key, cert):
-    """Check package in a 'check' distribution."""
+    """Check packages with reference to stable in a 'check' distribution."""
 
     api = get_api(args=args, url=url, key=key, cert=cert)
 
-    # Check the packages in private repo and re-publish
-    api.check(public_repo_name=args.repo_name, package_files=args.package_files,
-              upload_dir=api.local_user, no_prune=args.no_prune)
-
-    view.show_distribution(api, False, False, '%s/%s' % (args.repo_name, api.local_user), 'check')
+    if args.clean:
+        api.check_clean(public_repo_name=args.repo_name)
+    else:
+        # Check the packages in private repo and re-publish
+        check_repo_public_name = api.check(public_repo_name=args.repo_name, package_files=args.package_files,
+                                           upload_dir=api.local_user, no_prune=args.no_prune)
+        view.show_distribution(api, False, False, check_repo_public_name, 'check')
 
 
 def deploy_cmd(args, url, key, cert):
