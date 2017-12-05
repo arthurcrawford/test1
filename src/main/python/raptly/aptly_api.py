@@ -50,7 +50,8 @@ def local(public_repo_name):
 class AptlyApi:
     """Class that wraps calls to Aptly's REST API """
 
-    def __init__(self, repo_url, verbose=False, skip_ssl=False, user=':', key=None, cert=None):
+    def __init__(self, repo_url, verbose=False, skip_ssl=False, unstable_name='unstable', testing_name='testing',
+                 staging_name='staging', stable_name='stable', user=':', key=None, cert=None):
         self.repo_url = repo_url
         self.aptly_api_base_url = repo_url
         self.version_url = '%s/version' % self.aptly_api_base_url
@@ -73,10 +74,10 @@ class AptlyApi:
         requests.packages.urllib3.disable_warnings()
 
         # Default distribution names
-        self.unstable_name = 'unstable'
-        self.testing_name = 'testing'
-        self.staging_name = 'staging'
-        self.stable_name = 'stable'
+        self.unstable_name = unstable_name
+        self.testing_name = testing_name
+        self.staging_name = staging_name
+        self.stable_name = stable_name
 
         # The client local user name
         self.local_user = getpass.getuser()
@@ -522,13 +523,12 @@ class AptlyApi:
         if package_files:
             # Upload the package files to the private check repo
             self.upload_packages(package_files, check_repo_public_name, upload_dir)
-
-        # Create a new, temporary snapshot of the check repo
-        temp_new_pkgs_snapshot_name = '%s-snap-temp-new-pkgs' % local(check_repo_public_name)
-        self.drop_snapshot(temp_new_pkgs_snapshot_name)
-        self.create_local_repo_snapshot(temp_new_pkgs_snapshot_name, check_repo_public_name)
-        check_package_refs += self.get_packages_from_snapshot(temp_new_pkgs_snapshot_name)
-        source_snapshots.append(temp_new_pkgs_snapshot_name)
+            # Create a new, temporary snapshot of the check repo
+            temp_new_pkgs_snapshot_name = '%s-snap-temp-new-pkgs' % local(check_repo_public_name)
+            self.drop_snapshot(temp_new_pkgs_snapshot_name)
+            self.create_local_repo_snapshot(temp_new_pkgs_snapshot_name, check_repo_public_name)
+            check_package_refs += self.get_packages_from_snapshot(temp_new_pkgs_snapshot_name)
+            source_snapshots.append(temp_new_pkgs_snapshot_name)
 
         # Create union snapshot of stable + check
         union = stable_package_refs + check_package_refs
@@ -548,7 +548,7 @@ class AptlyApi:
     def get_check_repo_public_name(self, public_repo_name):
         return '%s.@%s@' % (public_repo_name, self.local_user)
 
-    def deploy(self, public_repo_name, package_files, gpg_public_key_id, unstable_dist_name, upload_dir):
+    def deploy(self, public_repo_name, package_files, gpg_public_key_id, upload_dir, unstable_dist_name='unstable'):
         """Deploy a Debian package to the specified distribution.
         :param public_repo_name: The name of the repository to deploy to
         :param package_files: List of Debian package local file names
@@ -628,24 +628,20 @@ class AptlyApi:
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                 % ('Failed to create snapshot %s distribution of repo: %s' % (
-                local_repo_snapshot_name, public_repo_name), r.status_code))
+                                local_repo_snapshot_name, public_repo_name), r.status_code))
 
-    def test(self, public_repo_name, package_query, release_id, unstable_distribution_name, testing_distribution_name,
-             stable_distribution_name, dry_run, no_prune=False):
+    def test(self, public_repo_name, package_query, release_id, dry_run, no_prune=False):
         """Create a test candidate, promoting the specified package to the testing distribution.
         :param public_repo_name: The name of the repository to deploy to (e.g. a4pizza/base)
         :param package_query: New packages to add.  A non-urlencoded Aptly package query.
         :param release_id: A unique ID for the test candidate (e.g. JIRA ticket number)
-        :param unstable_distribution_name: The name used for the unstable distribution (e.g. 'unstable')
-        :param testing_distribution_name: The name used for the testing distribution (e.g. 'testing')
-        :param stable_distribution_name: The name used for the stable distribution (e.g. 'stable')
         :param dry_run: If True, just show what would happen.
         :param no_prune: If True, the resulting check repo won't prune out old package versions
         """
 
         # Get list of packages from stable distribution if it exists
         stable_packages = []
-        stable_publication = self.find_publication(stable_distribution_name, public_repo_name)
+        stable_publication = self.find_publication(self.stable_name, public_repo_name)
         if stable_publication is not None:
             stable_packages = self.find_packages(stable_publication)
 
@@ -660,7 +656,7 @@ class AptlyApi:
 
             # Publish existing release as testing.  Use most recent if > 1
             existing_release = matching_releases[0]['Name']
-            self.publish(testing_distribution_name, public_repo_name, existing_release)
+            self.publish(self.testing_name, public_repo_name, existing_release)
             return stable_packages, [], existing_release
 
         # TODO - Exit if about to replace un-promoted testing - --force to override
@@ -669,7 +665,7 @@ class AptlyApi:
             print('Creating release candidate from packages: %s to %s' % (package_query, self.aptly_api_base_url))
 
         # Get the snapshot source of the unstable distribution
-        unstable_snapshot_name = self.get_snapshot_for_publication(distribution=unstable_distribution_name,
+        unstable_snapshot_name = self.get_snapshot_for_publication(distribution=self.unstable_name,
                                                                    public_repo_name=public_repo_name)
 
         # Create list of new packages to add to what's already in stable
@@ -704,13 +700,13 @@ class AptlyApi:
             # Publish / Re-publish the testing distribution
 
             # Check if testing exists
-            testing_publication = self.find_publication(testing_distribution_name, public_repo_name)
+            testing_publication = self.find_publication(self.testing_name, public_repo_name)
             if testing_publication is None:
                 # Publish the release candidate snapshot
                 payload = {'SourceKind': 'snapshot',
                            'Sources': [{'Name': snapshot_release_candidate}],
                            'Architectures': ['amd64', 'all'],
-                           'Distribution': testing_distribution_name}
+                           'Distribution': self.testing_name}
                 headers = {'content-type': 'application/json'}
                 r = self.do_post('%s/publish//%s' % (self.aptly_api_base_url, local(public_repo_name)),
                                  data=json.dumps(payload),
@@ -723,7 +719,7 @@ class AptlyApi:
                 payload = {'Snapshots': [{'Component': 'main', 'Name': snapshot_release_candidate}]}
                 headers = {'content-type': 'application/json'}
                 r = self.do_put('%s/publish//%s/%s' % (
-                    self.aptly_api_base_url, local(public_repo_name), testing_distribution_name),
+                    self.aptly_api_base_url, local(public_repo_name), self.testing_name),
                                 data=json.dumps(payload), headers=headers)
 
                 if r.status_code != requests.codes.ok:
@@ -731,7 +727,7 @@ class AptlyApi:
                                         % ('Failed to promote to testing', r.status_code))
 
             # Publish / re-publish the destination distribution
-            self.publish(dest_distribution_name=testing_distribution_name, public_repo_name=public_repo_name,
+            self.publish(dest_distribution_name=self.testing_name, public_repo_name=public_repo_name,
                          source_snapshot=snapshot_release_candidate)
 
         return union, new_packages, snapshot_release_candidate
@@ -824,7 +820,7 @@ class AptlyApi:
                 raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                     % ('Failed to promote to %s' % dest_distribution_name, r.status_code))
 
-    def create(self, public_repo_name, unstable_distribution_name):
+    def create(self, public_repo_name, unstable_distribution_name='unstable'):
         """Create an Aptly local repository
         :param unstable_distribution_name: The name used for the "unstable" distribution of this repo
         :param public_repo_name: The published name of the repository
