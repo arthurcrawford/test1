@@ -211,8 +211,8 @@ def deploy_cmd(args, url, key, cert):
 
     if args.package_files:
         # Deploy the packages and re-publish
-        api.deploy(public_repo_name=args.repo_name, package_files=args.package_files,
-                   gpg_public_key_id=args.gpg_key, unstable_dist_name=args.distribution, upload_dir=api.local_user)
+        api.deploy(public_repo_name=args.repo_name, package_files=args.package_files, gpg_public_key_id=args.gpg_key,
+                   upload_dir=args.local_user, unstable_dist_name=args.distribution)
     else:
         # No package files, just re-publish
         api.republish_unstable(unstable_dist_name=args.distribution, public_repo_name=args.repo_name,
@@ -256,9 +256,6 @@ def test_cmd(args, url, key, cert):
     union, new_packages, snapshot_release_candidate = api.test(public_repo_name=public_repo_name,
                                                                package_query=args.packages,
                                                                release_id=release_id,
-                                                               unstable_distribution_name=api.unstable_name,
-                                                               testing_distribution_name=api.testing_name,
-                                                               stable_distribution_name=api.stable_name,
                                                                dry_run=is_dry_run,
                                                                no_prune=no_prune)
 
@@ -292,7 +289,7 @@ def release_cmd(args, url, key, cert):
 
 
 def get_api(args, url, key, cert):
-    return AptlyApi(url.rstrip("/"), args.verbose, args.skip_ssl, args.user, key, cert)
+    return AptlyApi(repo_url=url.rstrip("/"), verbose=args.verbose, skip_ssl=args.skip_ssl, user=args.user, key=key, cert=cert)
 
 
 def version_cmd(args, url, key, cert):
