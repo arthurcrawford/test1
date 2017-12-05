@@ -289,7 +289,7 @@ def release_cmd(args, url, key, cert):
 
 
 def get_api(args, url, key, cert):
-    return AptlyApi(url.rstrip("/"), args.verbose, args.skip_ssl, args.user, key, cert)
+    return AptlyApi(repo_url=url.rstrip("/"), verbose=args.verbose, skip_ssl=args.skip_ssl, user=args.user, key=key, cert=cert)
 
 
 def version_cmd(args, url, key, cert):

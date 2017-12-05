@@ -7,7 +7,7 @@ from raptly.aptly_api import AptlyApi, RaptlyError, local
 
 @pytest.fixture
 def api():
-    return AptlyApi('http://localhost:9876/api')
+    return AptlyApi(repo_url='http://localhost:9876/api')
 
 
 @pytest.fixture
