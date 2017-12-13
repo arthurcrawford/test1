@@ -7,7 +7,7 @@ COPY aptly_pubkey.txt /
 RUN apt-key add aptly_pubkey.txt && \
       DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       apt-utils \
-      aptly \
+      aptly=1.1.1 \
       bzip2 \
       nginx \
       supervisor \
