@@ -212,7 +212,7 @@ def deploy_cmd(args, url, key, cert):
     if args.package_files:
         # Deploy the packages and re-publish
         api.deploy(public_repo_name=args.repo_name, package_files=args.package_files, gpg_public_key_id=args.gpg_key,
-                   upload_dir=args.local_user, unstable_dist_name=args.distribution)
+                   upload_dir=api.local_user, unstable_dist_name=args.distribution)
     else:
         # No package files, just re-publish
         api.republish_unstable(unstable_dist_name=args.distribution, public_repo_name=args.repo_name,
