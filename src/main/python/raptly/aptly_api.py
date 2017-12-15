@@ -89,7 +89,7 @@ class AptlyApi:
         """
         # payload = {'force': 1}
         # headers = {'content-type': 'application/json'}
-        r = self.do_delete('%s/repos/%s?force=1' % (base_url, local_repo_name))
+        r = self.__do_delete('%s/repos/%s?force=1' % (base_url, local_repo_name))
         if r.status_code != requests.codes.ok:
             raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to delete local repo: %s'
                                 % (r.status_code, local_repo_name))
@@ -100,7 +100,7 @@ class AptlyApi:
         :param local_repo_name: The local name of the repo (e.g. a4pizza_base)
         :param distribution: The distribution name (e.g. unstable | testing | stable)
         """
-        r = self.do_delete('%s/publish/%s/%s' % (base_url, local_repo_name, distribution))
+        r = self.__do_delete('%s/publish/%s/%s' % (base_url, local_repo_name, distribution))
         if r.status_code != requests.codes.ok:
             raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to drop published distribution: %s from: %s'
                                 % (r.status_code, distribution, local_repo_name))
@@ -119,7 +119,7 @@ class AptlyApi:
                    'Architectures': ['amd64', 'all'],
                    'Distribution': distribution}
         headers = {'content-type': 'application/json'}
-        r = self.do_post('%s/publish//%s' % (base_url, repo_name), data=json.dumps(payload), headers=headers)
+        r = self.__do_post('%s/publish/%s' % (base_url, repo_name), data=json.dumps(payload), headers=headers)
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                 % ('Failed to publish unstable snapshot', r.status_code))
@@ -133,7 +133,7 @@ class AptlyApi:
         if self.verbose:
             print('Deleting snapshot: %s' % delete_snapshot_url)
 
-        r = self.do_delete(delete_snapshot_url)
+        r = self.__do_delete(delete_snapshot_url)
 
         if (r.status_code != requests.codes.ok) and (r.status_code != requests.codes.not_found):
             raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to delete snapshot: %s'
@@ -145,7 +145,7 @@ class AptlyApi:
 
         filter_snapshot_url = '%s/snapshots/%s/packages?%s' % (self.aptly_api_base_url, snapshot_name, urlencoded_query)
 
-        r = self.do_get(filter_snapshot_url)
+        r = self.__do_get(filter_snapshot_url)
         if self.verbose:
             print('Filtering snapshot of unstable: %s' % filter_snapshot_url)
 
@@ -164,7 +164,7 @@ class AptlyApi:
                                             self.local_user)
         payload = {'Name': snapshot_name}
         headers = {'content-type': 'application/json'}
-        r = self.do_post('%s/snapshots' % self.aptly_api_base_url, data=json.dumps(payload), headers=headers)
+        r = self.__do_post('%s/snapshots' % self.aptly_api_base_url, data=json.dumps(payload), headers=headers)
         if self.verbose:
             print('Creating snapshot %s for repo %s' % (snapshot_name, public_repo_name))
 
@@ -184,7 +184,7 @@ class AptlyApi:
                    'Description': target_snapshot_name,
                    'PackageRefs': package_refs}
         headers = {'content-type': 'application/json'}
-        r = self.do_post('%s/snapshots' % self.aptly_api_base_url, data=json.dumps(payload), headers=headers)
+        r = self.__do_post('%s/snapshots' % self.aptly_api_base_url, data=json.dumps(payload), headers=headers)
         if self.verbose:
             print('Creating snapshot %s' % target_snapshot_name)
 
@@ -192,7 +192,7 @@ class AptlyApi:
             raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to create snapshot: %s'
                                 % (r.status_code, target_snapshot_name))
 
-    def do_delete(self, url, data=None, headers=None):
+    def __do_delete(self, url, data=None, headers=None):
         """Execute DELETE request on specified URL.
         :param data:
         :param headers:
@@ -200,13 +200,13 @@ class AptlyApi:
         """
         return requests.delete(url, cert=self.cert, auth=self.auth, verify=self.verify, data=data, headers=headers)
 
-    def do_get(self, url):
+    def __do_get(self, url):
         """Execute GET request on specified URL.
         :param url: The URL to make the GET request on.
         """
         return requests.get(url, cert=self.cert, auth=self.auth, verify=self.verify)
 
-    def do_post(self, url, files=None, data=None, headers=None):
+    def __do_post(self, url, files=None, data=None, headers=None):
         """Execute POST request on specified URL.
         :param url: The URL to make the GET request on.
         :param files: List of files to upload in the POST.
@@ -216,7 +216,7 @@ class AptlyApi:
         return requests.post(url, cert=self.cert, auth=self.auth, verify=self.verify, data=data, headers=headers,
                              files=files)
 
-    def do_put(self, url, data, headers):
+    def __do_put(self, url, data, headers):
         """Execute PUT request on specified URL.
         :param url: The URL to make the GET request on.
         :param data: Data payload of the PUT request.
@@ -296,7 +296,7 @@ class AptlyApi:
 
         # Get all snapshots on the system
         repos_rest_url = '%s/repos' % self.aptly_api_base_url
-        r = self.do_get(repos_rest_url)
+        r = self.__do_get(repos_rest_url)
         if r.status_code != requests.codes.ok:
             raise AptlyApiError(r.status_code,
                                 'Aptly API Error - %s - HTTP Error: %s' % (repos_rest_url, r.status_code))
@@ -307,7 +307,7 @@ class AptlyApi:
 
         # Get all snapshots on the system
         snapshots_rest_url = '%s/snapshots?sort=time' % self.aptly_api_base_url
-        r = self.do_get(snapshots_rest_url)
+        r = self.__do_get(snapshots_rest_url)
         if r.status_code != requests.codes.ok:
             raise AptlyApiError(r.status_code,
                                 'Aptly API Error - %s - HTTP Error: %s' % (snapshots_rest_url, r.status_code))
@@ -371,7 +371,7 @@ class AptlyApi:
 
         # Get all publications - i.e. published repos/snapshots
         publications_rest_url = '%s/publish' % self.aptly_api_base_url
-        r = self.do_get(publications_rest_url)
+        r = self.__do_get(publications_rest_url)
         if r.status_code != requests.codes.ok:
             raise AptlyApiError(r.status_code,
                                 'Aptly API Error - %s - HTTP Error: %s' % (publications_rest_url, r.status_code))
@@ -379,7 +379,7 @@ class AptlyApi:
 
     def get_packages_from_local_repo(self, local_repo_name):
         packages_rest_url = '%s/repos/%s/packages' % (self.aptly_api_base_url, local_repo_name)
-        r = self.do_get(packages_rest_url)
+        r = self.__do_get(packages_rest_url)
         if r.status_code != requests.codes.ok:
             raise AptlyApiError(r.status_code,
                                 'Aptly API Error - %s - HTTP Error: %s' % (packages_rest_url, r.status_code))
@@ -387,7 +387,7 @@ class AptlyApi:
 
     def get_packages_from_snapshot(self, snapshot_name):
         packages_rest_url = '%s/snapshots/%s/packages' % (self.aptly_api_base_url, snapshot_name)
-        r = self.do_get(packages_rest_url)
+        r = self.__do_get(packages_rest_url)
         if r.status_code != requests.codes.ok:
             raise AptlyApiError(r.status_code,
                                 'Aptly API Error - %s - HTTP Error: %s' % (packages_rest_url, r.status_code))
@@ -413,7 +413,7 @@ class AptlyApi:
         if self.verbose:
             print('Listing repos at: %s' % self.publish_url)
 
-        r = self.do_get(self.publish_url)
+        r = self.__do_get(self.publish_url)
 
         # Create a distinct list of publications
         if r.status_code == requests.codes.ok:
@@ -429,7 +429,7 @@ class AptlyApi:
         if self.verbose:
             print('Getting API version from: %s' % self.version_url)
 
-        r = self.do_get(self.version_url)
+        r = self.__do_get(self.version_url)
 
         if r.status_code == requests.codes.ok:
             return r.json()
@@ -470,7 +470,7 @@ class AptlyApi:
         for package_filename in package_filenames:
             files.append(('file', open(package_filename, 'rb')))
 
-        r = self.do_post(upload_file_url, files=files)
+        r = self.__do_post(upload_file_url, files=files)
 
         if r.status_code != requests.codes.ok:
             raise AptlyApiError(r.status_code,
@@ -576,7 +576,7 @@ class AptlyApi:
             if self.verbose:
                 print('Adding file: %s to repo %s' % (add_package_to_repo_url, local(public_repo_name)))
 
-            r = self.do_post(add_package_to_repo_url)
+            r = self.__do_post(add_package_to_repo_url)
             if r.status_code != requests.codes.ok:
                 raise AptlyApiError(r.status_code, '[HTTP %s] - Failed to add uploaded file to repo: %s'
                                     % (r.status_code, local(public_repo_name)))
@@ -624,11 +624,11 @@ class AptlyApi:
             print('Creating snapshot: %s' % create_snapshot_url)
         payload = {'Name': local_repo_snapshot_name}
         headers = {'content-type': 'application/json'}
-        r = self.do_post(create_snapshot_url, data=json.dumps(payload), headers=headers)
+        r = self.__do_post(create_snapshot_url, data=json.dumps(payload), headers=headers)
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                 % ('Failed to create snapshot %s distribution of repo: %s' % (
-                                local_repo_snapshot_name, public_repo_name), r.status_code))
+                local_repo_snapshot_name, public_repo_name), r.status_code))
 
     def test(self, public_repo_name, package_query, release_id, dry_run, no_prune=False):
         """Create a test candidate, promoting the specified package to the testing distribution.
@@ -708,9 +708,9 @@ class AptlyApi:
                            'Architectures': ['amd64', 'all'],
                            'Distribution': self.testing_name}
                 headers = {'content-type': 'application/json'}
-                r = self.do_post('%s/publish//%s' % (self.aptly_api_base_url, local(public_repo_name)),
-                                 data=json.dumps(payload),
-                                 headers=headers)
+                r = self.__do_post('%s/publish/%s' % (self.aptly_api_base_url, local(public_repo_name)),
+                                   data=json.dumps(payload),
+                                   headers=headers)
                 if r.status_code != 201:
                     raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                         % ('Failed to publish testing snapshot', r.status_code))
@@ -718,9 +718,9 @@ class AptlyApi:
                 # Re-publish the release candidate snapshot
                 payload = {'Snapshots': [{'Component': 'main', 'Name': snapshot_release_candidate}]}
                 headers = {'content-type': 'application/json'}
-                r = self.do_put('%s/publish//%s/%s' % (
+                r = self.__do_put('%s/publish//%s/%s' % (
                     self.aptly_api_base_url, local(public_repo_name), self.testing_name),
-                                data=json.dumps(payload), headers=headers)
+                                  data=json.dumps(payload), headers=headers)
 
                 if r.status_code != requests.codes.ok:
                     raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
@@ -766,10 +766,10 @@ class AptlyApi:
             print('Promoting release %s from %s to %s' % (release_id, source_distribution_name, dest_distribution_name))
 
         # Get the currently published source
-        staging_publication = self.find_publication(distribution=source_distribution_name,
-                                                    public_repo_name=public_repo_name)
-        # Check the source distribution exists
-        if staging_publication is None:
+        source_publication = self.find_publication(distribution=source_distribution_name,
+                                                   public_repo_name=public_repo_name)
+        # Check the source distribution is published
+        if source_publication is None:
             raise RaptlyError('Cannot promote to %s.  Source distribution %s does not exist.' % (
                 dest_distribution_name, source_distribution_name))
 
@@ -802,9 +802,9 @@ class AptlyApi:
                        'Architectures': ['amd64', 'all'],
                        'Distribution': dest_distribution_name}
             headers = {'content-type': 'application/json'}
-            r = self.do_post('%s/publish//%s' % (self.aptly_api_base_url, local(public_repo_name)),
-                             data=json.dumps(payload),
-                             headers=headers)
+            r = self.__do_post('%s/publish/%s' % (self.aptly_api_base_url, local(public_repo_name)),
+                               data=json.dumps(payload),
+                               headers=headers)
             if r.status_code != 201:
                 raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                     % ('Failed to publish to %s' % dest_distribution_name, r.status_code))
@@ -812,9 +812,9 @@ class AptlyApi:
             # Re-publish the snapshot
             payload = {'Snapshots': [{'Component': 'main', 'Name': source_snapshot}]}
             headers = {'content-type': 'application/json'}
-            r = self.do_put('%s/publish//%s/%s' % (
+            r = self.__do_put('%s/publish/%s/%s' % (
                 self.aptly_api_base_url, local(public_repo_name), dest_distribution_name),
-                            data=json.dumps(payload), headers=headers)
+                              data=json.dumps(payload), headers=headers)
 
             if r.status_code != requests.codes.ok:
                 raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
@@ -830,9 +830,9 @@ class AptlyApi:
                    'DefaultDistribution': '',
                    'DefaultComponent': ''}
         headers = {'content-type': 'application/json'}
-        r = self.do_post('%s/repos' % self.aptly_api_base_url,
-                         data=json.dumps(payload),
-                         headers=headers)
+        r = self.__do_post('%s/repos' % self.aptly_api_base_url,
+                           data=json.dumps(payload),
+                           headers=headers)
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                 % ('Failed to create repo %s' % public_repo_name, r.status_code), r.content)
@@ -846,9 +846,9 @@ class AptlyApi:
                    'Architectures': ['amd64', 'all'],
                    'Distribution': unstable_distribution_name}
         headers = {'content-type': 'application/json'}
-        r = self.do_post('%s/publish//%s' % (self.aptly_api_base_url, local(public_repo_name)),
-                         data=json.dumps(payload),
-                         headers=headers)
+        r = self.__do_post('%s/publish/%s' % (self.aptly_api_base_url, local(public_repo_name)),
+                           data=json.dumps(payload),
+                           headers=headers)
         if r.status_code != 201:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
                                 % ('Failed to publish distribution %s for repo %s' % (
@@ -862,9 +862,9 @@ class AptlyApi:
 
         payload = {'PackageRefs': package_refs}
         headers = {'content-type': 'application/json'}
-        r = self.do_delete('%s/repos/%s/packages' % (self.aptly_api_base_url, local(public_repo_name)),
-                           data=json.dumps(payload),
-                           headers=headers)
+        r = self.__do_delete('%s/repos/%s/packages' % (self.aptly_api_base_url, local(public_repo_name)),
+                             data=json.dumps(payload),
+                             headers=headers)
 
         if r.status_code != 200:
             raise AptlyApiError(r.status_code, 'Aptly API Error - %s - HTTP Error: %s'
