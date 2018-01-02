@@ -2,7 +2,7 @@ import getpass
 import os
 import uuid
 import pytest
-from raptly.aptly_api import AptlyApi, RaptlyError, local
+from raptly.aptly_api import AptlyApi, RaptlyError, local, AptlyApiError
 
 
 @pytest.fixture
@@ -71,6 +71,18 @@ def test_create(api):
     assert repo_local_name == local(repo_public_name)
 
 
+def test_create_failure_already_exists(api, empty_test_repo):
+    # Record how many repos there are before
+    before = api.get_published_repos()
+    repo_public_name = empty_test_repo
+    # Create the repo, expecting failure
+    with pytest.raises(AptlyApiError):
+        api.create(repo_public_name)
+
+    after = api.get_published_repos()
+    assert len(after) == len(before)
+
+
 def test_upload(api):
     # api = AptlyApi('http://localhost:9876/api', verbose=True)
     upload_dir = "%s" % getpass.getuser()
@@ -86,15 +98,18 @@ def test_upload(api):
         api.upload(package_filenames=['non-existent'], upload_dir=upload_dir)
 
 
-def test_check_fails(api, empty_test_repo):
+def test_check_failure_no_repo(api, empty_test_repo):
+    """Error handling and exceptions in the check API call"""
+    # No such repo exists
+    with pytest.raises(RaptlyError):
+        api.check('non-existent', package_files=[], upload_dir=api.local_user)
+
+
+def test_check_failure_no_stable(api, empty_test_repo):
     """Error handling and exceptions in the check API call"""
     # Repo exists but no stable distribution
     with pytest.raises(RaptlyError):
         api.check(public_repo_name=empty_test_repo, package_files=[], upload_dir=api.local_user)
-
-    # No such repo exists
-    with pytest.raises(RaptlyError):
-        api.check('non-existent', package_files=[], upload_dir=api.local_user)
 
 
 def test_check_no_packages(api, primed_test_repo):
@@ -163,15 +178,12 @@ def test_deploy(api):
     assert len(packages) - len(final) == 2
 
 
-def test_test(api):
+def test_test(api, empty_test_repo):
     # api = AptlyApi('http://localhost:9876/api')
     # Create a unique-ish 8 character repo name
-    repo_name = str(uuid.uuid1())[:8]
-    # Create the repo
-    distribution = 'unstable'
-    api.create(repo_name, distribution)
-    before = api.pkg_list(repo_name, distribution)
-    api.deploy(repo_name, [get_path('margherita_1.0.0_all.deb')], '', 'test', distribution)
+    repo_name = empty_test_repo
+    before = api.pkg_list(repo_name, 'unstable')
+    api.deploy(repo_name, [get_path('margherita_1.0.0_all.deb')], '', 'test', 'unstable')
 
     # Create a test candidate
     union, new_packages, snapshot_release_candidate = api.test(public_repo_name=repo_name,

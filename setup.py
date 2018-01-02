@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name='raptly',
-    version='2.1.23',
-    description='My description',
-    long_description='long desc',
+    version='2.1.29',
+    description='Remote Aptly client',
+    long_description='Remote Aptly client',
     author='Art Crawford',
     author_email='pizzaiolo@a4pizza.com',
     url='https://github.com/a4pizza/test1',

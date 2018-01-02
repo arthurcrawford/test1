@@ -27,9 +27,12 @@ class AptlyApiError(Exception):
         self.aptly_msg = ''
         if aptly_detail is not None:
             aptly_errors = json.loads(aptly_detail)
-            for err in aptly_errors:
-                self.aptly_msg += '%s\n' % err['error']
-                self.aptly_msg += '%s\n' % err['meta']
+            if isinstance(aptly_errors, dict):
+                self.aptly_msg += '%s\n' % aptly_errors['error']
+            elif isinstance(aptly_errors, list):
+                for err in aptly_errors:
+                    self.aptly_msg += '%s\n' % err['error']
+                    self.aptly_msg += '%s\n' % err['meta']
 
     def __str__(self):
         return repr(self.value)
