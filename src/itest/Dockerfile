@@ -2,12 +2,15 @@
 FROM ubuntu:trusty
 MAINTAINER Art
 
+ARG APTLY_VERSION_ARG
+ENV APTLY_VERSION ${APTLY_VERSION_ARG:-1.2.0}
+
 RUN echo "deb http://repo.aptly.info/ squeeze main" >> /etc/apt/sources.list.d/aptly.list
 COPY aptly_pubkey.txt /
 RUN apt-key add aptly_pubkey.txt && \
       DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       apt-utils \
-      aptly=1.1.1 \
+      aptly=${APTLY_VERSION} \
       bzip2 \
       nginx \
       supervisor \
