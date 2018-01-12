@@ -1,13 +1,15 @@
 # test1 ![build](https://travis-ci.org/arthurcrawford/test1.svg?branch=master)
-Test1.  Test repository for raptly tool
 
-## Quick Start
+Raptly is a release workflow tool and remote client for [aptly](https://www.aptly.info/), the Debian 
+repository manager.
 
-### Install on Mac
+It is written in Python and is available for Mac (Homebrew) and Linux (Debian)
 
-#### Home_brew 
+### Installation
 
-Install:
+#### Mac (Homebrew) 
+
+Install: 
 
     $ brew tap a4pizza/oven
     $ brew install raptly
@@ -19,6 +21,34 @@ Upgrade:
 Uninstall:
 
     $ brew remove raptly
+
+#### Linux (Debian)
+
+    $ dpkg -i raptly_<version>_all.deb
+
+### Configuration
+
+Create a configuration file.
+
+    $ cat ~/.raptly/config
+    [default]
+    url = "https://myrepo.example.com:9876/api"
+    # Client cert authentication
+    cert = "~/.raptly/client.crt"
+    key = "~/.raptly/client.key"
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
 ## Development
 
