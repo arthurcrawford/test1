@@ -37,6 +37,10 @@ def main():
         print("Connection refused: %s" % main_args.url)
         sys.exit(1)
 
+    except IOError as ioe:
+        print("File not found!")
+        sys.exit(1)
+
     except AptlyApiError as apte:
         if apte.value == requests.codes.UNAUTHORIZED:
             print('Unauthorized! %s ' % apte.msg)
