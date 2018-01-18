@@ -130,7 +130,7 @@ def create_cmd_parsers():
 
     # Create top level parser
     cmd_parser = argparse.ArgumentParser(prog='raptly', add_help=False,
-                                         epilog='Raptly w\033[92mr\033[0maps \033[92maptly\033[0m! \n  https://www.aptly.info/',
+                                         epilog='A \033[92mr\033[0memote \033[92maptly\033[0m client \n  https://www.aptly.info/',
                                          formatter_class=CustomHelpFormatter)
 
     # Create sub-parsers for commands

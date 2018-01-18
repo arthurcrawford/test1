@@ -1,17 +1,39 @@
 # bash completion for raptly
 
-# Completion function
 _raptly ()
 {
-  # Current completion word
-  local cur
-  cur=${COMP_WORDS[COMP_CWORD]}
+    # Current completion word
+    local cur prev prevprev
+    cur=${COMP_WORDS[COMP_CWORD]}
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    if [ "${COMP_CWORD}" -ge 2 ]
+        then
+        prevprev="${COMP_WORDS[COMP_CWORD-2]}"
+    fi
 
-  # Array containing completions
-  COMPREPLY=()
-  COMPREPLY=( $( compgen -W 'create check deploy undeploy test stage release version show' -- $cur ) )
+    COMPREPLY=()
 
-  return 0
+    case "${prevprev}" in
+    deploy|check)
+        COMPREPLY=( $(compgen -f ${cur}) )
+        return 0
+        ;;
+    *)
+    ;;
+    esac
+
+    case "${prev}" in
+    -p|--packages)
+        COMPREPLY=( $(compgen -f ${cur}) )
+        return 0
+        ;;
+    *)
+    ;;
+    esac
+
+    COMPREPLY=( $( compgen -W 'create check deploy undeploy test stage release version show' -- $cur ) )
+
+    return 0
 }
 
 complete -F _raptly -o filenames raptly
