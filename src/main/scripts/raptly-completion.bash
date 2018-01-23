@@ -36,4 +36,4 @@ _raptly ()
     return 0
 }
 
-complete -F _raptly -o filenames raptly
+complete -F _raptly -o default raptly
